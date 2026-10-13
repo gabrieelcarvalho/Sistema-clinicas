@@ -1,0 +1,26 @@
+from model.pessoa import Pessoa
+
+class Profissional(Pessoa):
+    def __init__(self, cpf: str, nome: str, celular: str, especialidade: str, registro_profissional: str):
+        super().__init__(cpf, nome, celular)
+        self.__especialidade = especialidade
+        self.__registro_profissional = registro_profissional
+
+    @property
+    def especialidade(self) -> str:
+        return self.__especialidade
+
+    @especialidade.setter
+    def especialidade(self, especialidade: str):
+        self.__especialidade = especialidade
+
+    @property
+    def registro_profissional(self) -> str:
+        return self.__registro_profissional
+
+    @registro_profissional.setter
+    def registro_profissional(self, registro_profissional: str):
+        self.__registro_profissional = registro_profissional
+
+    def mostra_dados(self) -> str:
+        return f"{super().mostra_dados()}, Especialidade: {self.especialidade}, Registro Profissional: {self.registro_profissional}"
