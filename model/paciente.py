@@ -15,7 +15,8 @@ class Paciente(Pessoa):
         self.__data_nascimento = data_nascimento
 
     def mostra_dados(self) -> str:
-        return f"{super().mostra_dados()}, Data de Nascimento: {self.data_nascimento}"
+        data_formatada = self.data_nascimento.strftime("%d/%m/%Y")
+        return f"{super().mostra_dados()}, Data de Nascimento: {data_formatada}"
 
     def maior_de_idade(self) -> bool:
         hoje = date.today()
