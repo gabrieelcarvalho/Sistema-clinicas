@@ -3,7 +3,7 @@ from model.clinica import Clinica
 from model.paciente import Paciente
 from model.profissional import Profissional
 from model.acompanhante import Acompanhante
-from model.tipo_atendimento import TipoAtendimento
+from model.tipoatendimento import TipoAtendimento
 from model.procedimento import Procedimento
 
 
@@ -132,8 +132,7 @@ class Atendimento:
     def total_pago(self) -> float:
         total = 0.0
         for p in self.__pagamentos:
-            # Se p for um objeto Pagamento com atributo valor, soma p.valor; se for float, soma p
-            total += p.valor if hasattr(p, "valor") else p
+            total += p.valor_pagamento if hasattr(p, "valor_pagamento") else p
         return total
 
     def pago(self) -> bool:
@@ -158,7 +157,8 @@ class Atendimento:
         
         return (
             f"Atendimento Nº {self.numero_atendimento} - Paciente: {self.paciente.nome}, "
-            f"Profissional: {self.profissional.nome}, Data: {data_f}, Horário: {inicio_f} às {fim_f}, "
+            f"Profissional: {self.profissional.nome}, Data: {data_formatada}, "
+            f"Horário: {inicio_formatado} às {fim_formatado}, "
             f"Tipo: {self.tipo_atendimento.nome}, Valor Total: R$ {self.valor_total:.2f}, "
             f"Pago: {status_pago}, Restante: R$ {self.mostra_valor_restante():.2f}"
         )
