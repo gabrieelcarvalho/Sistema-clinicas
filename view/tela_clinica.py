@@ -1,74 +1,87 @@
+
 from datetime import time
 
 
 class TelaClinica:
     def tela_opcoes(self) -> int:
-        print("\n" + "=" * 35)
-        print("        GERENCIAR CLÍNICAS")
-        print("=" * 35)
+        print("\n=== GERENCIAR CLÍNICAS ===")
         print("1 - Cadastrar Clínica")
         print("2 - Excluir Clínica")
         print("3 - Alterar Horário")
         print("4 - Listar Clínicas Abertas")
+        print("5 - Listar Todas as Clínicas")
+        print("6 - Alterar Nome")
+        print("7 - Alterar Cidade")
+        print("8 - Alterar Descrição")
         print("0 - Retornar")
-        print("=" * 35)
 
         try:
             return int(input("Escolha a opção: "))
         except ValueError:
             return -1
 
-    def pega_dados_clinica(self) -> dict:
-    print("\n--- Dados da Clínica ---")
-    nome = input("Nome da clínica: ").strip()
-    cidade = input("Cidade: ").strip()
-    descricao = input("Descrição: ").strip()
+    def pega_horario(self, campo: str) -> time:
+        while True:
+            try:
+                texto = input(
+                    f"{campo} (HH:MM): "
+                ).strip()
 
-    while True:
-        try:
-            abertura_str = input(
-                "Horário de abertura (HH:MM): "
-            ).strip()
-            h_ab, m_ab = map(int, abertura_str.split(":"))
-            abertura = time(h_ab, m_ab)
-            break
-        except ValueError:
-            print("[AVISO]: Horário de abertura inválido!")
+                h, m = map(int, texto.split(":"))
+                return time(h, m)
 
-    while True:
-        try:
-            fechamento_str = input(
-                "Horário de fechamento (HH:MM): "
-            ).strip()
-            h_fc, m_fc = map(int, fechamento_str.split(":"))
-            fechamento = time(h_fc, m_fc)
-
-            if fechamento <= abertura:
+            except ValueError:
                 print(
-                    "[AVISO]: O fechamento deve ser "
-                    "posterior à abertura!"
+                    "[AVISO]: Horário inválido! Use HH:MM."
                 )
-                continue
 
-            break
-        except ValueError:
-            print("[AVISO]: Horário de fechamento inválido!")
+    def pega_novos_horarios(self) -> dict:
+        while True:
+            abertura = self.pega_horario(
+                "Horário de abertura"
+            )
+            fechamento = self.pega_horario(
+                "Horário de fechamento"
+            )
 
-    return {
-        "nome": nome,
-        "cidade": cidade,
-        "descricao": descricao,
-        "abertura": abertura,
-        "fechamento": fechamento
-    }
+            if abertura < fechamento:
+                return {
+                    "abertura": abertura,
+                    "fechamento": fechamento
+                }
+
+            print(
+                "[AVISO]: O fechamento deve ser "
+                "posterior à abertura!"
+            )
+
+    def pega_dados_clinica(self) -> dict:
+        print("\n--- Dados da Clínica ---")
+
+        dados = {
+            "nome": input("Nome: ").strip(),
+            "cidade": input("Cidade: ").strip(),
+            "descricao": input("Descrição: ").strip()
+        }
+
+        dados.update(self.pega_novos_horarios())
+        return dados
+
+    def pega_novo_dado(self, campo: str) -> str:
+        return input(f"Novo(a) {campo}: ").strip()
 
     def mostra_clinica(self, dados: dict) -> None:
-        abertura_str = dados['abertura'].strftime('%H:%M') if hasattr(dados['abertura'], 'strftime') else str(dados['abertura'])
-        fechamento_str = dados['fechamento'].strftime('%H:%M') if hasattr(dados['fechamento'], 'strftime') else str(dados['fechamento'])
-        print(f"Nome: {dados['nome']} | Abertura: {abertura_str} | Fechamento: {fechamento_str}")
+        print(
+            f"Nome: {dados['nome']} | "
+            f"Cidade: {dados['cidade']} | "
+            f"Descrição: {dados['descricao']} | "
+            f"Funcionamento: "
+            f"{dados['abertura']:%H:%M} às "
+            f"{dados['fechamento']:%H:%M}"
+        )
 
     def seleciona_clinica(self) -> str:
-        return input("Digite o nome da clínica: ").strip()
+        return input("Nome da clínica: ").strip()
 
     def mostra_mensagem(self, msg: str) -> None:
         print(f"\n[AVISO]: {msg}")
