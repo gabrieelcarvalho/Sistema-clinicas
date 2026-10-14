@@ -1,3 +1,4 @@
+
 from model.profissional import Profissional
 from view.tela_profissional import TelaProfissional
 
@@ -12,142 +13,258 @@ class ControladorProfissional:
     def profissionais(self) -> list:
         return self.__profissionais
 
-    def cadastra_profissional(self, profissional: Profissional) -> None:
-        if isinstance(profissional, Profissional):
-            if self.busca_profissional(profissional.cpf) is None:
-                self.__profissionais.append(profissional)
-                self.__tela_profissional.mostra_mensagem("Profissional cadastrado com sucesso!")
-            else:
-                self.__tela_profissional.mostra_mensagem("Erro: Já existe um profissional com este CPF!")
+    def busca_profissional(self, cpf: str):
+        return next(
+            (p for p in self.__profissionais if p.cpf == cpf),
+            None
+        )
+
+    def __busca_registro(self, registro: str):
+        return next(
+            (
+                p for p in self.__profissionais
+                if p.registro_profissional == registro
+            ),
+            None
+        )
+
+    def cadastra_profissional(
+        self, profissional: Profissional
+    ) -> None:
+        if (
+            not isinstance(profissional, Profissional)
+            or not profissional.cpf
+            or not profissional.registro_profissional
+            or not profissional.nome
+        ):
+            self.__tela_profissional.mostra_mensagem(
+                "Dados inválidos!"
+            )
+
+        elif (
+            self.busca_profissional(profissional.cpf)
+            or self.__busca_registro(
+                profissional.registro_profissional
+            )
+        ):
+            self.__tela_profissional.mostra_mensagem(
+                "CPF ou registro profissional já cadastrado!"
+            )
+
+        else:
+            self.__profissionais.append(profissional)
+            self.__tela_profissional.mostra_mensagem(
+                "Profissional cadastrado com sucesso!"
+            )
 
     def exclui_profissional(self, cpf: str) -> None:
         profissional = self.busca_profissional(cpf)
-        if profissional is not None:
-            self.__profissionais.remove(profissional)
-            self.__tela_profissional.mostra_mensagem("Profissional excluído com sucesso!")
-        else:
-            self.__tela_profissional.mostra_mensagem("Erro: Profissional não encontrado!")
 
-    def altera_especialidade(self, registro: str, nova_especialidade: str) -> None:
-        for profissional in self.__profissionais:
-            if profissional.registro_profissional == registro:
-                profissional.especialidade = nova_especialidade
-                self.__tela_profissional.mostra_mensagem("Especialidade alterada com sucesso!")
-                return
-        self.__tela_profissional.mostra_mensagem("Erro: Profissional não encontrado pelo registro!")
-
-    def altera_registro(self, registro_atual: str, novo_registro: str) -> None:
-        for profissional in self.__profissionais:
-            if profissional.registro_profissional == registro_atual:
-                profissional.registro_profissional = novo_registro
-                self.__tela_profissional.mostra_mensagem("Registro profissional alterado com sucesso!")
-                return
-        self.__tela_profissional.mostra_mensagem("Erro: Profissional não encontrado pelo registro atual!")
-
-    def altera_nome(self, cpf: str, novo_nome: str) -> None:
-        profissional = self.busca_profissional(cpf)
-        if profissional is not None:
-            profissional.nome = novo_nome
-            self.__tela_profissional.mostra_mensagem("Nome alterado com sucesso!")
-        else:
-            self.__tela_profissional.mostra_mensagem("Erro: Profissional não encontrado!")
-
-    def altera_cpf(self, cpf_atual: str, novo_cpf: str) -> None:
-        profissional = self.busca_profissional(cpf_atual)
-        if profissional is not None:
-            if self.busca_profissional(novo_cpf) is None:
-                profissional.cpf = novo_cpf
-                self.__tela_profissional.mostra_mensagem("CPF alterado com sucesso!")
-            else:
-                self.__tela_profissional.mostra_mensagem("Erro: Novo CPF já cadastrado para outro profissional!")
-        else:
-            self.__tela_profissional.mostra_mensagem("Erro: Profissional não encontrado!")
-
-    def busca_profissional(self, cpf: str) -> Profissional | None:
-        for profissional in self.__profissionais:
-            if profissional.cpf == cpf:
-                return profissional
-        return None
-
-    def retorna(self) -> None:
-        pass
-
-    def abre_tela(self) -> None:
-        lista_opcoes = {
-    1: self.__incluir,
-    2: self.__excluir,
-    3: self.__alterar_especialidade,
-    4: self.__alterar_registro,
-    5: self.__alterar_nome,
-    6: self.__alterar_cpf,
-    7: self.__listar,
-    0: self.retorna
-}
-
-        while True:
-            opcao_escolhida = self.__tela_profissional.tela_opcoes()
-            funcao_escolhida = lista_opcoes.get(opcao_escolhida)
-
-            if funcao_escolhida:
-                funcao_escolhida()
-            else:
-                self.__tela_profissional.mostra_mensagem("Opção inválida! Escolha um número do menu.")
-
-            if opcao_escolhida == 0:
-                break
-
-    def __incluir(self) -> None:
-        dados = self.__tela_profissional.pega_dados_profissional()
-        if dados:
-            novo = Profissional(
-                cpf=dados["cpf"],
-                nome=dados["nome"],
-                celular=dados["celular"],
-                especialidade=dados["especialidade"],
-                registro_profissional=dados["registro_profissional"],
+        if profissional is None:
+            self.__tela_profissional.mostra_mensagem(
+                "Profissional não encontrado!"
             )
-            self.cadastra_profissional(novo)
 
-    def __excluir(self) -> None:
-        cpf = self.__tela_profissional.seleciona_profissional()
+        elif any(
+            a.profissional is profissional
+            for a in self.__controlador_sistema
+            .controlador_atendimento.atendimentos
+        ):
+            self.__tela_profissional.mostra_mensagem(
+                "Profissional possui atendimentos vinculados!"
+            )
+
+        elif any(
+            p.profissional is profissional
+            for p in self.__controlador_sistema
+            .controlador_procedimento.procedimentos
+        ):
+            self.__tela_profissional.mostra_mensagem(
+                "Profissional possui procedimentos vinculados!"
+            )
+
+        else:
+            self.__profissionais.remove(profissional)
+            self.__tela_profissional.mostra_mensagem(
+                "Profissional excluído!"
+            )
+
+    def altera_especialidade(
+        self, registro: str, nova_especialidade: str
+    ) -> None:
+        profissional = self.__busca_registro(registro)
+
+        self.__altera_texto(
+            profissional, "especialidade",
+            nova_especialidade
+        )
+
+    def altera_registro(
+        self, registro_atual: str, novo_registro: str
+    ) -> None:
+        profissional = self.__busca_registro(
+            registro_atual
+        )
+
+        if profissional is None or not novo_registro:
+            self.__tela_profissional.mostra_mensagem(
+                "Registro inválido ou profissional não encontrado!"
+            )
+
+        elif self.__busca_registro(
+            novo_registro
+        ) not in (None, profissional):
+            self.__tela_profissional.mostra_mensagem(
+                "Registro já utilizado!"
+            )
+
+        else:
+            profissional.registro_profissional = novo_registro
+            self.__tela_profissional.mostra_mensagem(
+                "Registro alterado!"
+            )
+
+    def altera_nome(
+        self, cpf: str, novo_nome: str
+    ) -> None:
+        self.__altera_texto(
+            self.busca_profissional(cpf),
+            "nome", novo_nome
+        )
+
+    def altera_cpf(
+        self, cpf_atual: str, novo_cpf: str
+    ) -> None:
+        profissional = self.busca_profissional(cpf_atual)
+
+        if profissional is None or not novo_cpf:
+            self.__tela_profissional.mostra_mensagem(
+                "CPF inválido ou profissional não encontrado!"
+            )
+
+        elif self.busca_profissional(
+            novo_cpf
+        ) not in (None, profissional):
+            self.__tela_profissional.mostra_mensagem(
+                "CPF já utilizado!"
+            )
+
+        else:
+            profissional.cpf = novo_cpf
+            self.__tela_profissional.mostra_mensagem(
+                "CPF alterado!"
+            )
+
+    def altera_celular(
+        self, cpf: str, novo_celular: str
+    ) -> None:
+        self.__altera_texto(
+            self.busca_profissional(cpf),
+            "celular", novo_celular
+        )
+
+    def __altera_texto(
+        self, profissional, campo: str, valor: str
+    ):
+        if profissional is None or not valor.strip():
+            self.__tela_profissional.mostra_mensagem(
+                "Profissional não encontrado ou valor vazio!"
+            )
+            return
+
+        setattr(profissional, campo, valor)
+
+        self.__tela_profissional.mostra_mensagem(
+            "Dado alterado com sucesso!"
+        )
+
+    def __incluir(self):
+        dados = (
+            self.__tela_profissional
+            .pega_dados_profissional()
+        )
+
+        self.cadastra_profissional(
+            Profissional(**dados)
+        )
+
+    def __excluir(self):
+        cpf = (
+            self.__tela_profissional
+            .seleciona_profissional()
+        )
+
         self.exclui_profissional(cpf)
 
-    def __alterar_nome(self) -> None:
-        cpf = self.__tela_profissional.seleciona_profissional()
-        dados = self.__tela_profissional.pega_dados_profissional()
-        self.altera_nome(cpf, dados["nome"])
+    def __listar(self):
+        if not self.__profissionais:
+            self.__tela_profissional.mostra_mensagem(
+                "Nenhum profissional cadastrado."
+            )
 
-    def __alterar_cpf(self) -> None:
-        cpf_atual = self.__tela_profissional.seleciona_profissional()
-        dados = self.__tela_profissional.pega_dados_profissional()
-        self.altera_cpf(cpf_atual, dados["cpf"])
+        for p in self.__profissionais:
+            self.__tela_profissional.mostra_profissional({
+                "nome": p.nome,
+                "cpf": p.cpf,
+                "celular": p.celular,
+                "especialidade": p.especialidade,
+                "registro_profissional": p.registro_profissional
+            })
 
-    def __alterar_registro(self) -> None:
-        registro_atual = self.__tela_profissional.seleciona_profissional()
-        dados = self.__tela_profissional.pega_dados_profissional()
-        self.altera_registro(registro_atual, dados["registro_profissional"])
-
-    def __alterar_especialidade(self) -> None:
-        registro = self.__tela_profissional.seleciona_profissional()
-        dados = self.__tela_profissional.pega_dados_profissional()
-        self.altera_especialidade(registro, dados["especialidade"])
-
-    def __listar(self) -> None:
-    if not self.__profissionais:
-        self.__tela_profissional.mostra_mensagem(
-            "Nenhum profissional cadastrado."
+    def __editar(self, campo: str):
+        tipo = (
+            "registro profissional"
+            if campo in ("especialidade", "registro")
+            else "CPF"
         )
-        return
 
-    print("\n--- LISTA DE PROFISSIONAIS ---")
+        identificador = (
+            self.__tela_profissional
+            .seleciona_profissional(tipo)
+        )
 
-    for profissional in self.__profissionais:
-        dados = {
-            "nome": profissional.nome,
-            "cpf": profissional.cpf,
-            "celular": profissional.celular,
-            "especialidade": profissional.especialidade,
-            "registro_profissional": profissional.registro_profissional
+        valor = (
+            self.__tela_profissional
+            .pega_novo_dado(campo)
+        )
+
+        {
+            "especialidade": self.altera_especialidade,
+            "registro": self.altera_registro,
+            "nome": self.altera_nome,
+            "cpf": self.altera_cpf,
+            "celular": self.altera_celular
+        }[campo](identificador, valor)
+
+    def retorna(self):
+        pass
+
+    def abre_tela(self):
+        opcoes = {
+            1: self.__incluir,
+            2: self.__excluir,
+            3: lambda: self.__editar("especialidade"),
+            4: lambda: self.__editar("registro"),
+            5: lambda: self.__editar("nome"),
+            6: lambda: self.__editar("cpf"),
+            7: self.__listar,
+            8: lambda: self.__editar("celular"),
+            0: self.retorna
         }
 
-        self.__tela_profissional.mostra_profissional(dados)
+        while True:
+            opcao = (
+                self.__tela_profissional
+                .tela_opcoes()
+            )
+
+            if opcao not in opcoes:
+                self.__tela_profissional.mostra_mensagem(
+                    "Opção inválida!"
+                )
+                continue
+
+            opcoes[opcao]()
+
+            if opcao == 0:
+                break

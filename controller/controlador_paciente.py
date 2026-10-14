@@ -1,3 +1,4 @@
+
 from model.paciente import Paciente
 from view.tela_paciente import TelaPaciente
 
@@ -12,136 +13,214 @@ class ControladorPaciente:
     def pacientes(self) -> list:
         return self.__pacientes
 
-    def cadastra_paciente(self, paciente: Paciente) -> None:
-        if isinstance(paciente, Paciente):
-            if self.busca_paciente(paciente.cpf) is None:
-                self.__pacientes.append(paciente)
-                self.__tela_paciente.mostra_mensagem("Paciente cadastrado com sucesso!")
-            else:
-                self.__tela_paciente.mostra_mensagem("Erro: Já existe um paciente com este CPF!")
-
-def altera_data_nascimento(self, cpf, nova_data) -> None:
-    paciente = self.busca_paciente(cpf)
-
-    if paciente is None:
-        self.__tela_paciente.mostra_mensagem(
-            "Paciente não encontrado!"
+    def busca_paciente(self, cpf: str):
+        return next(
+            (p for p in self.__pacientes if p.cpf == cpf),
+            None
         )
-        return
 
-    paciente.data_nascimento = nova_data
-
-    self.__tela_paciente.mostra_mensagem(
-        "Data de nascimento alterada com sucesso!"
-    )
+    def cadastra_paciente(self, paciente: Paciente) -> None:
+        if (
+            not isinstance(paciente, Paciente)
+            or not paciente.nome.strip()
+            or not paciente.cpf.strip()
+        ):
+            self.__tela_paciente.mostra_mensagem(
+                "Dados do paciente inválidos!"
+            )
+        elif self.busca_paciente(paciente.cpf) is not None:
+            self.__tela_paciente.mostra_mensagem(
+                "Já existe paciente com esse CPF!"
+            )
+        else:
+            self.__pacientes.append(paciente)
+            self.__tela_paciente.mostra_mensagem(
+                "Paciente cadastrado com sucesso!"
+            )
 
     def exclui_paciente(self, cpf: str) -> None:
         paciente = self.busca_paciente(cpf)
-        if paciente is not None:
+
+        if paciente is None:
+            self.__tela_paciente.mostra_mensagem(
+                "Paciente não encontrado!"
+            )
+        elif any(
+            a.paciente is paciente
+            for a in self.__controlador_sistema
+            .controlador_atendimento.atendimentos
+        ):
+            self.__tela_paciente.mostra_mensagem(
+                "Paciente possui atendimentos. "
+                "Cancele-os antes da exclusão."
+            )
+        else:
             self.__pacientes.remove(paciente)
-            self.__tela_paciente.mostra_mensagem("Paciente excluído com sucesso!")
-        else:
-            self.__tela_paciente.mostra_mensagem("Erro: Paciente não encontrado!")
+            self.__tela_paciente.mostra_mensagem(
+                "Paciente excluído com sucesso!"
+            )
 
-    def altera_nome(self, cpf: str, novo_nome: str) -> None:
-        paciente = self.busca_paciente(cpf)
-        if paciente is not None:
-            paciente.nome = novo_nome
-            self.__tela_paciente.mostra_mensagem("Nome alterado com sucesso!")
-        else:
-            self.__tela_paciente.mostra_mensagem("Erro: Paciente não encontrado!")
+    def altera_nome(
+        self, cpf: str, novo_nome: str
+    ) -> None:
+        self.__altera_texto(
+            cpf, "nome", novo_nome
+        )
 
-    def altera_cpf(self, cpf_atual: str, novo_cpf: str) -> None:
+    def altera_cpf(
+        self, cpf_atual: str, novo_cpf: str
+    ) -> None:
         paciente = self.busca_paciente(cpf_atual)
-        if paciente is not None:
-            if self.busca_paciente(novo_cpf) is None:
-                paciente.cpf = novo_cpf
-                self.__tela_paciente.mostra_mensagem("CPF alterado com sucesso!")
-            else:
-                self.__tela_paciente.mostra_mensagem("Erro: Já existe um paciente com este novo CPF!")
+
+        if paciente is None or not novo_cpf.strip():
+            self.__tela_paciente.mostra_mensagem(
+                "Paciente não encontrado ou CPF inválido!"
+            )
+        elif self.busca_paciente(novo_cpf) not in (
+            None, paciente
+        ):
+            self.__tela_paciente.mostra_mensagem(
+                "Novo CPF já cadastrado!"
+            )
         else:
-            self.__tela_paciente.mostra_mensagem("Erro: Paciente não encontrado!")
+            paciente.cpf = novo_cpf
+            self.__tela_paciente.mostra_mensagem(
+                "CPF alterado com sucesso!"
+            )
 
-    def busca_paciente(self, cpf: str) -> Paciente | None:
-        for paciente in self.__pacientes:
-            if paciente.cpf == cpf:
-                return paciente
-        return None
+    def altera_celular(
+        self, cpf: str, novo_celular: str
+    ) -> None:
+        self.__altera_texto(
+            cpf, "celular", novo_celular
+        )
 
-    def abre_tela(self) -> None:
-        def cadastra():
-            dados = self.__tela_paciente.pega_dados_paciente()
-            if dados:
-                novo_paciente = Paciente(
-                    cpf=dados["cpf"],
-                    nome=dados["nome"],
-                    celular=dados["celular"],
-                    data_nascimento=dados["data_nascimento"],
-                )
-                self.cadastra_paciente(novo_paciente)
+    def __altera_texto(
+        self, cpf: str, campo: str, valor: str
+    ) -> None:
+        paciente = self.busca_paciente(cpf)
 
-        def excluir():
-            cpf = self.__tela_paciente.seleciona_paciente()
-            if cpf:
-                self.exclui_paciente(cpf)
+        if paciente is None or not valor.strip():
+            self.__tela_paciente.mostra_mensagem(
+                "Paciente não encontrado ou dado vazio!"
+            )
+            return
 
-        def alterar_nome():
-            cpf = self.__tela_paciente.seleciona_paciente()
-            if cpf:
-                novo_nome = input("Digite o novo nome: ").strip()
-                if novo_nome:
-                    self.altera_nome(cpf, novo_nome)
+        setattr(paciente, campo, valor)
 
-        def alterar_cpf():
-            cpf_atual = self.__tela_paciente.seleciona_paciente()
-            if cpf_atual:
-                novo_cpf = input("Digite o novo CPF: ").strip()
-                if novo_cpf:
-                    self.altera_cpf(cpf_atual, novo_cpf)
+        self.__tela_paciente.mostra_mensagem(
+            "Dado alterado com sucesso!"
+        )
 
-            lista_opcoes = {
-        1: cadastra,
-        2: excluir,
-        3: alterar_nome,
-        4: alterar_cpf,
-        5: listar,
-        6: alterar_data_nascimento,
-        0: self.retorna
-    }
+    def altera_data_nascimento(
+        self, cpf, nova_data
+    ) -> None:
+        paciente = self.busca_paciente(cpf)
 
-        while True:
-            opcao_escolhida = self.__tela_paciente.tela_opcoes()
-            funcao_escolhida = lista_opcoes.get(opcao_escolhida)
+        if paciente is None:
+            self.__tela_paciente.mostra_mensagem(
+                "Paciente não encontrado!"
+            )
+            return
 
-            if funcao_escolhida:
-                funcao_escolhida()
-            else:
-                self.__tela_paciente.mostra_mensagem("Opção inválida! Escolha um número do menu.")
+        atendimentos = (
+            self.__controlador_sistema
+            .controlador_atendimento.atendimentos
+        )
 
-            if opcao_escolhida == 0:
-                break
+        if any(
+            a.paciente is paciente
+            and not Paciente(
+                paciente.cpf,
+                paciente.nome,
+                paciente.celular,
+                nova_data
+            ).maior_de_idade(a.data)
+            and a.acompanhante is None
+            for a in atendimentos
+        ):
+            self.__tela_paciente.mostra_mensagem(
+                "Nova data tornaria um atendimento "
+                "de menor inválido!"
+            )
+            return
 
-        def listar():
-            if not self.__pacientes:
-                self.__tela_paciente.mostra_mensagem(
-                    "Nenhum paciente cadastrado."
-                )
-                return
+        paciente.data_nascimento = nova_data
 
-            for paciente in self.__pacientes:
-                dados = {
-                    "nome": paciente.nome,
-                    "cpf": paciente.cpf,
-                    "celular": paciente.celular,
-                    "data_nascimento": paciente.data_nascimento
-                }
-
-                self.__tela_paciente.mostra_paciente(dados)
-        
-        def alterar_data_nascimento():
-            cpf = self.__tela_paciente.seleciona_paciente()
-            nova_data = self.__tela_paciente.pega_nova_data_nascimento()
-            self.altera_data_nascimento(cpf, nova_data)
+        self.__tela_paciente.mostra_mensagem(
+            "Data de nascimento alterada!"
+        )
 
     def retorna(self) -> None:
         pass
+
+    def __incluir(self):
+        dados = self.__tela_paciente.pega_dados_paciente()
+        self.cadastra_paciente(Paciente(**dados))
+
+    def __listar(self):
+        if not self.__pacientes:
+            self.__tela_paciente.mostra_mensagem(
+                "Nenhum paciente cadastrado."
+            )
+
+        for p in self.__pacientes:
+            self.__tela_paciente.mostra_paciente({
+                "nome": p.nome,
+                "cpf": p.cpf,
+                "celular": p.celular,
+                "data_nascimento": p.data_nascimento
+            })
+
+    def __excluir(self):
+        cpf = self.__tela_paciente.seleciona_paciente()
+        self.exclui_paciente(cpf)
+
+    def __editar(self, campo: str):
+        cpf = self.__tela_paciente.seleciona_paciente()
+        valor = self.__tela_paciente.pega_novo_dado(
+            campo
+        )
+
+        {
+            "nome": self.altera_nome,
+            "cpf": self.altera_cpf,
+            "celular": self.altera_celular
+        }[campo](cpf, valor)
+
+    def __editar_nascimento(self):
+        cpf = self.__tela_paciente.seleciona_paciente()
+        nova_data = (
+            self.__tela_paciente
+            .pega_nova_data_nascimento()
+        )
+
+        self.altera_data_nascimento(
+            cpf, nova_data
+        )
+
+    def abre_tela(self):
+        opcoes = {
+            1: self.__incluir,
+            2: self.__excluir,
+            3: lambda: self.__editar("nome"),
+            4: lambda: self.__editar("cpf"),
+            5: self.__listar,
+            6: lambda: self.__editar("celular"),
+            7: self.__editar_nascimento,
+            0: self.retorna
+        }
+
+        while True:
+            opcao = self.__tela_paciente.tela_opcoes()
+
+            if opcao not in opcoes:
+                self.__tela_paciente.mostra_mensagem(
+                    "Opção inválida!"
+                )
+                continue
+
+            opcoes[opcao]()
+
+            if opcao == 0:
+                break

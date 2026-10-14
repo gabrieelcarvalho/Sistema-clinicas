@@ -1,3 +1,4 @@
+
 from datetime import time
 from model.clinica import Clinica
 from view.tela_clinica import TelaClinica
@@ -13,115 +14,261 @@ class ControladorClinica:
     def clinicas(self) -> list:
         return self.__clinicas
 
-    def cadastra_clinica(self, clinica: Clinica) -> None:
-        if isinstance(clinica, Clinica):
-            if self.busca_clinica(clinica.nome) is None:
-                self.__clinicas.append(clinica)
-                self.__tela_clinica.mostra_mensagem("Clínica cadastrada com sucesso!")
-            else:
-                self.__tela_clinica.mostra_mensagem("Erro: Já existe uma clínica com este nome!")
+    def busca_clinica(self, nome: str):
+        return next(
+            (c for c in self.__clinicas if c.nome == nome),
+            None
+        )
+
+    def cadastra_clinica(
+        self, clinica: Clinica
+    ) -> None:
+        if (
+            not isinstance(clinica, Clinica)
+            or not clinica.nome.strip()
+            or not clinica.cidade.strip()
+        ):
+            self.__tela_clinica.mostra_mensagem(
+                "Nome e cidade são obrigatórios!"
+            )
+
+        elif self.busca_clinica(clinica.nome):
+            self.__tela_clinica.mostra_mensagem(
+                "Já existe uma clínica com esse nome!"
+            )
+
+        elif (
+            clinica.horario_abertura
+            >= clinica.horario_fechamento
+        ):
+            self.__tela_clinica.mostra_mensagem(
+                "Expediente inválido!"
+            )
+
+        else:
+            self.__clinicas.append(clinica)
+            self.__tela_clinica.mostra_mensagem(
+                "Clínica cadastrada com sucesso!"
+            )
 
     def exclui_clinica(self, nome: str) -> None:
         clinica = self.busca_clinica(nome)
-        if clinica is not None:
-            self.__clinicas.remove(clinica)
-            self.__tela_clinica.mostra_mensagem("Clínica excluída com sucesso!")
-        else:
-            self.__tela_clinica.mostra_mensagem("Erro: Clínica não encontrada!")
 
-    def altera_horario(self, clinica: Clinica, abertura: time, fechamento: time) -> None:
-        if isinstance(clinica, Clinica):
+        if clinica is None:
+            self.__tela_clinica.mostra_mensagem(
+                "Clínica não encontrada!"
+            )
+
+        elif clinica.atendimentos:
+            self.__tela_clinica.mostra_mensagem(
+                "Cancele os atendimentos da clínica "
+                "antes da exclusão!"
+            )
+
+        else:
+            self.__clinicas.remove(clinica)
+            self.__tela_clinica.mostra_mensagem(
+                "Clínica excluída com sucesso!"
+            )
+
+    def altera_horario(
+        self, clinica: Clinica,
+        abertura: time, fechamento: time
+    ) -> None:
+        if (
+            clinica not in self.__clinicas
+            or abertura >= fechamento
+        ):
+            self.__tela_clinica.mostra_mensagem(
+                "Clínica ou expediente inválido!"
+            )
+
+        elif any(
+            not (
+                abertura <= a.hora_inicio
+                < a.hora_fim <= fechamento
+            )
+            for a in clinica.atendimentos
+        ):
+            self.__tela_clinica.mostra_mensagem(
+                "O novo horário excluiria "
+                "atendimentos já marcados!"
+            )
+
+        else:
             clinica.horario_abertura = abertura
             clinica.horario_fechamento = fechamento
-            self.__tela_clinica.mostra_mensagem("Horário alterado com sucesso!")
+
+            self.__tela_clinica.mostra_mensagem(
+                "Horário alterado com sucesso!"
+            )
 
     def clinicas_abertas(self, hora: time) -> list:
-        abertas = []
-        for clinica in self.__clinicas:
-            if hasattr(clinica, 'horario_abertura') and hasattr(clinica, 'horario_fechamento'):
-                if clinica.horario_abertura <= hora <= clinica.horario_fechamento:
-                    abertas.append(clinica)
-        return abertas
+        return [
+            c for c in self.__clinicas
+            if c.esta_aberta_clinica(hora)
+        ]
 
-    def busca_clinica(self, nome: str) -> Clinica | None:
-        for clinica in self.__clinicas:
-            if clinica.nome == nome:
-                return clinica
-        return None
+    def altera_nome(
+        self, nome_atual: str, novo_nome: str
+    ):
+        clinica = self.busca_clinica(nome_atual)
 
-    def abre_tela(self) -> None:
-        def cadastra():
-    dados = self.__tela_clinica.pega_dados_clinica()
+        if clinica is None or not novo_nome.strip():
+            self.__tela_clinica.mostra_mensagem(
+                "Clínica não encontrada ou nome inválido!"
+            )
 
-    if not dados["nome"] or not dados["cidade"]:
-        self.__tela_clinica.mostra_mensagem(
-            "Nome e cidade são obrigatórios!"
+        elif self.busca_clinica(
+            novo_nome
+        ) not in (None, clinica):
+            self.__tela_clinica.mostra_mensagem(
+                "Nome já utilizado!"
+            )
+
+        else:
+            clinica.nome = novo_nome
+            self.__tela_clinica.mostra_mensagem(
+                "Nome alterado!"
+            )
+
+    def altera_cidade(
+        self, nome: str, nova_cidade: str
+    ):
+        self.__altera_texto(
+            nome, "cidade", nova_cidade
         )
-        return
 
-    nova_clinica = Clinica(
-        nome=dados["nome"],
-        cidade=dados["cidade"],
-        descricao=dados["descricao"],
-        horario_abertura=dados["abertura"],
-        horario_fechamento=dados["fechamento"]
-    )
+    def altera_descricao(
+        self, nome: str, nova_descricao: str
+    ):
+        self.__altera_texto(
+            nome, "descricao", nova_descricao
+        )
 
-    self.cadastra_clinica(nova_clinica)
+    def __altera_texto(
+        self, nome: str, campo: str, valor: str
+    ):
+        clinica = self.busca_clinica(nome)
 
-        def excluir():
-            nome = self.__tela_clinica.seleciona_clinica()
-            if nome:
-                self.exclui_clinica(nome)
+        if clinica is None or not valor.strip():
+            self.__tela_clinica.mostra_mensagem(
+                "Clínica não encontrada ou valor vazio!"
+            )
+            return
 
-        def alterar_horario():
-            nome = self.__tela_clinica.seleciona_clinica()
-            clinica = self.busca_clinica(nome)
-            if clinica is not None:
-                dados = self.__tela_clinica.pega_dados_clinica()
-                self.altera_horario(clinica, dados["abertura"], dados["fechamento"])
-            else:
-                self.__tela_clinica.mostra_mensagem("Erro: Clínica não encontrada!")
+        setattr(clinica, campo, valor)
 
-        def listar_abertas():
-            hora_str = input("Digite o horário para consulta (HH:MM): ").strip()
-            try:
-                h, m = map(int, hora_str.split(":"))
-                hora = time(h, m)
-            except ValueError:
-                self.__tela_clinica.mostra_mensagem("Erro: Horário inválido!")
-                return
+        self.__tela_clinica.mostra_mensagem(
+            "Dado alterado com sucesso!"
+        )
 
-            abertas = self.clinicas_abertas(hora)
-            if abertas:
-                for c in abertas:
-                    self.__tela_clinica.mostra_clinica({
-                        "nome": c.nome,
-                        "abertura": c.horario_abertura,
-                        "fechamento": c.horario_fechamento,
-                    })
-            else:
-                self.__tela_clinica.mostra_mensagem("Nenhuma clínica aberta neste horário.")
+    def __exibe(self, clinicas: list):
+        if not clinicas:
+            self.__tela_clinica.mostra_mensagem(
+                "Nenhuma clínica encontrada!"
+            )
 
-        lista_opcoes = {
-            1: cadastra,
-            2: excluir,
-            3: alterar_horario,
-            4: listar_abertas,
-            0: self.retorna,
+        for c in clinicas:
+            self.__tela_clinica.mostra_clinica({
+                "nome": c.nome,
+                "cidade": c.cidade,
+                "descricao": c.descricao,
+                "abertura": c.horario_abertura,
+                "fechamento": c.horario_fechamento
+            })
+
+    def __cadastrar(self):
+        dados = (
+            self.__tela_clinica.pega_dados_clinica()
+        )
+
+        self.cadastra_clinica(
+            Clinica(
+                dados["nome"],
+                dados["cidade"],
+                dados["descricao"],
+                dados["abertura"],
+                dados["fechamento"]
+            )
+        )
+
+    def __excluir(self):
+        self.exclui_clinica(
+            self.__tela_clinica.seleciona_clinica()
+        )
+
+    def __alterar_horarios(self):
+        clinica = self.busca_clinica(
+            self.__tela_clinica.seleciona_clinica()
+        )
+
+        if clinica is None:
+            self.__tela_clinica.mostra_mensagem(
+                "Clínica não encontrada!"
+            )
+            return
+
+        dados = (
+            self.__tela_clinica.pega_novos_horarios()
+        )
+
+        self.altera_horario(
+            clinica,
+            dados["abertura"],
+            dados["fechamento"]
+        )
+
+    def __listar_abertas(self):
+        hora = self.__tela_clinica.pega_horario(
+            "Horário de consulta"
+        )
+
+        self.__exibe(
+            self.clinicas_abertas(hora)
+        )
+
+    def __editar(self, campo: str):
+        nome = (
+            self.__tela_clinica.seleciona_clinica()
+        )
+
+        valor = self.__tela_clinica.pega_novo_dado(
+            campo
+        )
+
+        {
+            "nome": self.altera_nome,
+            "cidade": self.altera_cidade,
+            "descricao": self.altera_descricao
+        }[campo](nome, valor)
+
+    def retorna(self):
+        pass
+
+    def abre_tela(self):
+        opcoes = {
+            1: self.__cadastrar,
+            2: self.__excluir,
+            3: self.__alterar_horarios,
+            4: self.__listar_abertas,
+            5: lambda: self.__exibe(self.__clinicas),
+            6: lambda: self.__editar("nome"),
+            7: lambda: self.__editar("cidade"),
+            8: lambda: self.__editar("descricao"),
+            0: self.retorna
         }
 
         while True:
-            opcao_escolhida = self.__tela_clinica.tela_opcoes()
-            funcao_escolhida = lista_opcoes.get(opcao_escolhida)
+            opcao = self.__tela_clinica.tela_opcoes()
 
-            if funcao_escolhida:
-                funcao_escolhida()
-            else:
-                self.__tela_clinica.mostra_mensagem("Opção inválida! Escolha um número do menu.")
+            if opcao not in opcoes:
+                self.__tela_clinica.mostra_mensagem(
+                    "Opção inválida!"
+                )
+                continue
 
-            if opcao_escolhida == 0:
+            opcoes[opcao]()
+
+            if opcao == 0:
                 break
-
-    def retorna(self) -> None:
-        pass
