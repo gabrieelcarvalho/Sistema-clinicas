@@ -12,8 +12,6 @@ class ControladorProfissional:
     def profissionais(self) -> list:
         return self.__profissionais
 
-    # --- Métodos de Negócio / CRUD ---
-
     def cadastra_profissional(self, profissional: Profissional) -> None:
         if isinstance(profissional, Profissional):
             if self.busca_profissional(profissional.cpf) is None:
@@ -74,14 +72,14 @@ class ControladorProfissional:
     def retorna(self) -> None:
         pass
 
-    # --- Navegação do Submenu ---
-
     def abre_tela(self) -> None:
         lista_opcoes = {
             1: self.__incluir,
-            2: self.__alterar,
-            3: self.__listar,
-            4: self.__excluir,
+            2: self.__excluir,
+            3: self.__alterar_nome,
+            4: self.__alterar_cpf,
+            5: self.__alterar_registro,
+            6: self.__alterar_especialidade,
             0: self.retorna,
         }
 
@@ -97,8 +95,6 @@ class ControladorProfissional:
             if opcao_escolhida == 0:
                 break
 
-    # --- Métodos Auxiliares Privados ---
-
     def __incluir(self) -> None:
         dados = self.__tela_profissional.pega_dados_profissional()
         if dados:
@@ -111,61 +107,26 @@ class ControladorProfissional:
             )
             self.cadastra_profissional(novo)
 
-    def __alterar(self) -> None:
-        if not self.__profissionais:
-            self.__tela_profissional.mostra_mensagem("Nenhum profissional cadastrado para alterar.")
-            return
-
-        self.__listar()
-
-        lista_opcoes_alteracao = {
-            1: self.__alterar_nome_aux,
-            2: self.__alterar_cpf_aux,
-            3: self.__alterar_registro_aux,
-            4: self.__alterar_especialidade_aux,
-            0: self.retorna,
-        }
-
-        opcao_escolhida = self.__tela_profissional.tela_opcoes_alteracao()
-        funcao_escolhida = lista_opcoes_alteracao.get(opcao_escolhida)
-
-        if funcao_escolhida:
-            funcao_escolhida()
-        else:
-            self.__tela_profissional.mostra_mensagem("Opção inválida ou operação cancelada.")
-
-    def __alterar_nome_aux(self) -> None:
-        cpf = self.__tela_profissional.seleciona_cpf()
-        novo_nome = self.__tela_profissional.pega_novo_nome()
-        self.altera_nome(cpf, novo_nome)
-
-    def __alterar_cpf_aux(self) -> None:
-        cpf_atual = self.__tela_profissional.seleciona_cpf()
-        novo_cpf = self.__tela_profissional.pega_novo_cpf()
-        self.altera_cpf(cpf_atual, novo_cpf)
-
-    def __alterar_registro_aux(self) -> None:
-        registro_atual = self.__tela_profissional.seleciona_registro()
-        novo_registro = self.__tela_profissional.pega_novo_registro()
-        self.altera_registro(registro_atual, novo_registro)
-
-    def __alterar_especialidade_aux(self) -> None:
-        registro = self.__tela_profissional.seleciona_registro()
-        nova_esp = self.__tela_profissional.pega_nova_especialidade()
-        self.altera_especialidade(registro, nova_esp)
-
-    def __listar(self) -> None:
-        if not self.__profissionais:
-            self.__tela_profissional.mostra_mensagem("Nenhum profissional cadastrado.")
-            return
-        self.__tela_profissional.mostra_mensagem("--- LISTA DE PROFISSIONAIS ---")
-        for p in self.__profissionais:
-            self.__tela_profissional.mostra_profissional(p.mostra_dados())
-
     def __excluir(self) -> None:
-        if not self.__profissionais:
-            self.__tela_profissional.mostra_mensagem("Nenhum profissional cadastrado para excluir.")
-            return
-        self.__listar()
-        cpf = self.__tela_profissional.seleciona_cpf()
+        cpf = self.__tela_profissional.seleciona_profissional()
         self.exclui_profissional(cpf)
+
+    def __alterar_nome(self) -> None:
+        cpf = self.__tela_profissional.seleciona_profissional()
+        dados = self.__tela_profissional.pega_dados_profissional()
+        self.altera_nome(cpf, dados["nome"])
+
+    def __alterar_cpf(self) -> None:
+        cpf_atual = self.__tela_profissional.seleciona_profissional()
+        dados = self.__tela_profissional.pega_dados_profissional()
+        self.altera_cpf(cpf_atual, dados["cpf"])
+
+    def __alterar_registro(self) -> None:
+        registro_atual = self.__tela_profissional.seleciona_profissional()
+        dados = self.__tela_profissional.pega_dados_profissional()
+        self.altera_registro(registro_atual, dados["registro_profissional"])
+
+    def __alterar_especialidade(self) -> None:
+        registro = self.__tela_profissional.seleciona_profissional()
+        dados = self.__tela_profissional.pega_dados_profissional()
+        self.altera_especialidade(registro, dados["especialidade"])
