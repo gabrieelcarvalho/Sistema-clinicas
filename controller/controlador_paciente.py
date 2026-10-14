@@ -20,6 +20,21 @@ class ControladorPaciente:
             else:
                 self.__tela_paciente.mostra_mensagem("Erro: Já existe um paciente com este CPF!")
 
+def altera_data_nascimento(self, cpf, nova_data) -> None:
+    paciente = self.busca_paciente(cpf)
+
+    if paciente is None:
+        self.__tela_paciente.mostra_mensagem(
+            "Paciente não encontrado!"
+        )
+        return
+
+    paciente.data_nascimento = nova_data
+
+    self.__tela_paciente.mostra_mensagem(
+        "Data de nascimento alterada com sucesso!"
+    )
+
     def exclui_paciente(self, cpf: str) -> None:
         paciente = self.busca_paciente(cpf)
         if paciente is not None:
@@ -84,13 +99,15 @@ class ControladorPaciente:
                 if novo_cpf:
                     self.altera_cpf(cpf_atual, novo_cpf)
 
-        lista_opcoes = {
-            1: cadastra,
-            2: excluir,
-            3: alterar_nome,
-            4: alterar_cpf,
-            0: self.retorna,
-        }
+            lista_opcoes = {
+        1: cadastra,
+        2: excluir,
+        3: alterar_nome,
+        4: alterar_cpf,
+        5: listar,
+        6: alterar_data_nascimento,
+        0: self.retorna
+    }
 
         while True:
             opcao_escolhida = self.__tela_paciente.tela_opcoes()
@@ -103,6 +120,28 @@ class ControladorPaciente:
 
             if opcao_escolhida == 0:
                 break
+
+        def listar():
+            if not self.__pacientes:
+                self.__tela_paciente.mostra_mensagem(
+                    "Nenhum paciente cadastrado."
+                )
+                return
+
+            for paciente in self.__pacientes:
+                dados = {
+                    "nome": paciente.nome,
+                    "cpf": paciente.cpf,
+                    "celular": paciente.celular,
+                    "data_nascimento": paciente.data_nascimento
+                }
+
+                self.__tela_paciente.mostra_paciente(dados)
+        
+        def alterar_data_nascimento():
+            cpf = self.__tela_paciente.seleciona_paciente()
+            nova_data = self.__tela_paciente.pega_nova_data_nascimento()
+            self.altera_data_nascimento(cpf, nova_data)
 
     def retorna(self) -> None:
         pass

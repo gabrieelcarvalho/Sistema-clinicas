@@ -19,28 +19,48 @@ class TelaClinica:
             return -1
 
     def pega_dados_clinica(self) -> dict:
-        print("\n--- Dados da Clínica ---")
-        nome = input("Nome da clínica: ").strip()
-        abertura_str = input("Horário de abertura (HH:MM): ").strip()
-        fechamento_str = input("Horário de fechamento (HH:MM): ").strip()
+    print("\n--- Dados da Clínica ---")
+    nome = input("Nome da clínica: ").strip()
+    cidade = input("Cidade: ").strip()
+    descricao = input("Descrição: ").strip()
 
+    while True:
         try:
+            abertura_str = input(
+                "Horário de abertura (HH:MM): "
+            ).strip()
             h_ab, m_ab = map(int, abertura_str.split(":"))
             abertura = time(h_ab, m_ab)
+            break
         except ValueError:
-            abertura = time(8, 0)
+            print("[AVISO]: Horário de abertura inválido!")
 
+    while True:
         try:
+            fechamento_str = input(
+                "Horário de fechamento (HH:MM): "
+            ).strip()
             h_fc, m_fc = map(int, fechamento_str.split(":"))
             fechamento = time(h_fc, m_fc)
-        except ValueError:
-            fechamento = time(18, 0)
 
-        return {
-            "nome": nome,
-            "abertura": abertura,
-            "fechamento": fechamento,
-        }
+            if fechamento <= abertura:
+                print(
+                    "[AVISO]: O fechamento deve ser "
+                    "posterior à abertura!"
+                )
+                continue
+
+            break
+        except ValueError:
+            print("[AVISO]: Horário de fechamento inválido!")
+
+    return {
+        "nome": nome,
+        "cidade": cidade,
+        "descricao": descricao,
+        "abertura": abertura,
+        "fechamento": fechamento
+    }
 
     def mostra_clinica(self, dados: dict) -> None:
         abertura_str = dados['abertura'].strftime('%H:%M') if hasattr(dados['abertura'], 'strftime') else str(dados['abertura'])

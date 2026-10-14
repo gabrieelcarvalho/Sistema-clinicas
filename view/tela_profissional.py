@@ -9,6 +9,7 @@ class TelaProfissional:
         print("4 - Alterar Registro Profissional")
         print("5 - Alterar Nome")
         print("6 - Alterar CPF")
+        print("7 - Listar Profissionais")
         print("0 - Retornar")
         print("=" * 35)
 

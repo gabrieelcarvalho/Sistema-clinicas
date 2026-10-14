@@ -74,14 +74,15 @@ class ControladorProfissional:
 
     def abre_tela(self) -> None:
         lista_opcoes = {
-            1: self.__incluir,
-            2: self.__excluir,
-            3: self.__alterar_nome,
-            4: self.__alterar_cpf,
-            5: self.__alterar_registro,
-            6: self.__alterar_especialidade,
-            0: self.retorna,
-        }
+    1: self.__incluir,
+    2: self.__excluir,
+    3: self.__alterar_especialidade,
+    4: self.__alterar_registro,
+    5: self.__alterar_nome,
+    6: self.__alterar_cpf,
+    7: self.__listar,
+    0: self.retorna
+}
 
         while True:
             opcao_escolhida = self.__tela_profissional.tela_opcoes()
@@ -130,3 +131,23 @@ class ControladorProfissional:
         registro = self.__tela_profissional.seleciona_profissional()
         dados = self.__tela_profissional.pega_dados_profissional()
         self.altera_especialidade(registro, dados["especialidade"])
+
+    def __listar(self) -> None:
+    if not self.__profissionais:
+        self.__tela_profissional.mostra_mensagem(
+            "Nenhum profissional cadastrado."
+        )
+        return
+
+    print("\n--- LISTA DE PROFISSIONAIS ---")
+
+    for profissional in self.__profissionais:
+        dados = {
+            "nome": profissional.nome,
+            "cpf": profissional.cpf,
+            "celular": profissional.celular,
+            "especialidade": profissional.especialidade,
+            "registro_profissional": profissional.registro_profissional
+        }
+
+        self.__tela_profissional.mostra_profissional(dados)

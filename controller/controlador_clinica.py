@@ -51,14 +51,23 @@ class ControladorClinica:
 
     def abre_tela(self) -> None:
         def cadastra():
-            dados = self.__tela_clinica.pega_dados_clinica()
-            if dados and dados["nome"]:
-                nova_clinica = Clinica(
-                    nome=dados["nome"],
-                    horario_abertura=dados["abertura"],
-                    horario_fechamento=dados["fechamento"],
-                )
-                self.cadastra_clinica(nova_clinica)
+    dados = self.__tela_clinica.pega_dados_clinica()
+
+    if not dados["nome"] or not dados["cidade"]:
+        self.__tela_clinica.mostra_mensagem(
+            "Nome e cidade são obrigatórios!"
+        )
+        return
+
+    nova_clinica = Clinica(
+        nome=dados["nome"],
+        cidade=dados["cidade"],
+        descricao=dados["descricao"],
+        horario_abertura=dados["abertura"],
+        horario_fechamento=dados["fechamento"]
+    )
+
+    self.cadastra_clinica(nova_clinica)
 
         def excluir():
             nome = self.__tela_clinica.seleciona_clinica()
