@@ -54,7 +54,7 @@ class ControladorPaciente:
         return None
 
     def abre_tela(self) -> None:
-        def incluir():
+        def cadastra():
             dados = self.__tela_paciente.pega_dados_paciente()
             if dados:
                 novo_paciente = Paciente(
@@ -79,7 +79,7 @@ class ControladorPaciente:
             self.altera_cpf(cpf_atual, dados["cpf"])
 
         lista_opcoes = {
-            1: incluir,
+            1: cadastra,
             2: excluir,
             3: alterar_nome,
             4: alterar_cpf,
