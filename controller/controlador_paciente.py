@@ -60,7 +60,8 @@ class ControladorPaciente:
                 novo_paciente = Paciente(
                     cpf=dados["cpf"],
                     nome=dados["nome"],
-                    celular=dados["celular"]
+                    celular=dados["celular"],
+                    data_nascimento=dados["data_nascimento"],
                 )
                 self.cadastra_paciente(novo_paciente)
 

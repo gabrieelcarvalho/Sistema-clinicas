@@ -1,10 +1,9 @@
 from model.procedimento import Procedimento
 from view.tela_procedimento import TelaProcedimento
-from controller.controlador_sistema import ControladorSistema
 
 
 class ControladorProcedimento:
-    def __init__(self, controlador_sistema: ControladorSistema):
+    def __init__(self, controlador_sistema):
         self.__controlador_sistema = controlador_sistema
         self.__tela_procedimento = TelaProcedimento()
         self.__procedimentos = []
@@ -39,9 +38,15 @@ class ControladorProcedimento:
         def cadastra():
             dados = self.__tela_procedimento.pega_dados_procedimento()
             if dados:
+                cpf_prof = input("CPF do profissional responsável: ").strip()
+                prof = self.__controlador_sistema.controlador_profissional.busca_profissional(cpf_prof)
+                if prof is None:
+                    self.__tela_procedimento.mostra_mensagem("Erro: Profissional não encontrado!")
+                    return
                 novo_procedimento = Procedimento(
                     descricao=dados["descricao"],
-                    custo=dados["custo"]
+                    custo=dados["custo"],
+                    profissional=prof,
                 )
                 self.cadastra_procedimento(novo_procedimento)
 
