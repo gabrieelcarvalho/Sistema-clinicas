@@ -67,17 +67,22 @@ class ControladorPaciente:
 
         def excluir():
             cpf = self.__tela_paciente.seleciona_paciente()
-            self.exclui_paciente(cpf)
+            if cpf:
+                self.exclui_paciente(cpf)
 
         def alterar_nome():
             cpf = self.__tela_paciente.seleciona_paciente()
-            dados = self.__tela_paciente.pega_dados_paciente()
-            self.altera_nome(cpf, dados["nome"])
+            if cpf:
+                novo_nome = input("Digite o novo nome: ").strip()
+                if novo_nome:
+                    self.altera_nome(cpf, novo_nome)
 
         def alterar_cpf():
             cpf_atual = self.__tela_paciente.seleciona_paciente()
-            dados = self.__tela_paciente.pega_dados_paciente()
-            self.altera_cpf(cpf_atual, dados["cpf"])
+            if cpf_atual:
+                novo_cpf = input("Digite o novo CPF: ").strip()
+                if novo_cpf:
+                    self.altera_cpf(cpf_atual, novo_cpf)
 
         lista_opcoes = {
             1: cadastra,
