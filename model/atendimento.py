@@ -1,3 +1,4 @@
+
 from datetime import date as Date, time as Time
 from model.clinica import Clinica
 from model.paciente import Paciente
@@ -9,17 +10,12 @@ from model.procedimento import Procedimento
 
 class Atendimento:
     def __init__(
-        self,
-        clinica: Clinica,
-        paciente: Paciente,
-        profissional: Profissional,
-        data: Date,
-        hora_inicio: Time,
-        hora_fim: Time,
+        self, clinica: Clinica, paciente: Paciente,
+        profissional: Profissional, data: Date,
+        hora_inicio: Time, hora_fim: Time,
         tipo_atendimento: TipoAtendimento,
-        valor: float,
-        numero_atendimento: int,
-        acompanhante: Acompanhante = None,
+        valor: float, numero_atendimento: int,
+        acompanhante: Acompanhante = None
     ):
         self.__clinica = clinica
         self.__paciente = paciente
@@ -39,56 +35,56 @@ class Atendimento:
         return self.__clinica
 
     @clinica.setter
-    def clinica(self, clinica: Clinica):
-        self.__clinica = clinica
+    def clinica(self, valor: Clinica):
+        self.__clinica = valor
 
     @property
     def paciente(self) -> Paciente:
         return self.__paciente
 
     @paciente.setter
-    def paciente(self, paciente: Paciente):
-        self.__paciente = paciente
+    def paciente(self, valor: Paciente):
+        self.__paciente = valor
 
     @property
     def profissional(self) -> Profissional:
         return self.__profissional
 
     @profissional.setter
-    def profissional(self, profissional: Profissional):
-        self.__profissional = profissional
+    def profissional(self, valor: Profissional):
+        self.__profissional = valor
 
     @property
     def data(self) -> Date:
         return self.__data
 
     @data.setter
-    def data(self, data: Date):
-        self.__data = data
+    def data(self, valor: Date):
+        self.__data = valor
 
     @property
     def hora_inicio(self) -> Time:
         return self.__hora_inicio
 
     @hora_inicio.setter
-    def hora_inicio(self, hora_inicio: Time):
-        self.__hora_inicio = hora_inicio
+    def hora_inicio(self, valor: Time):
+        self.__hora_inicio = valor
 
     @property
     def hora_fim(self) -> Time:
         return self.__hora_fim
 
     @hora_fim.setter
-    def hora_fim(self, hora_fim: Time):
-        self.__hora_fim = hora_fim
+    def hora_fim(self, valor: Time):
+        self.__hora_fim = valor
 
     @property
     def tipo_atendimento(self) -> TipoAtendimento:
         return self.__tipo_atendimento
 
     @tipo_atendimento.setter
-    def tipo_atendimento(self, tipo_atendimento: TipoAtendimento):
-        self.__tipo_atendimento = tipo_atendimento
+    def tipo_atendimento(self, valor: TipoAtendimento):
+        self.__tipo_atendimento = valor
 
     @property
     def valor(self) -> float:
@@ -103,16 +99,16 @@ class Atendimento:
         return self.__numero_atendimento
 
     @numero_atendimento.setter
-    def numero_atendimento(self, numero_atendimento: int):
-        self.__numero_atendimento = numero_atendimento
+    def numero_atendimento(self, valor: int):
+        self.__numero_atendimento = valor
 
     @property
     def acompanhante(self) -> Acompanhante:
         return self.__acompanhante
 
     @acompanhante.setter
-    def acompanhante(self, acompanhante: Acompanhante):
-        self.__acompanhante = acompanhante
+    def acompanhante(self, valor: Acompanhante):
+        self.__acompanhante = valor
 
     @property
     def pagamentos(self) -> list:
@@ -124,41 +120,49 @@ class Atendimento:
 
     @property
     def valor_total(self) -> float:
-        total = self.valor
-        for procedimento in self.__procedimentos:
-            total += procedimento.custo
-        return total
+        return self.valor + sum(
+            procedimento.custo
+            for procedimento in self.__procedimentos
+        )
 
     def total_pago(self) -> float:
-        total = 0.0
-        for p in self.__pagamentos:
-            total += p.valor_pagamento if hasattr(p, "valor_pagamento") else p
-        return total
+        return sum(
+            pagamento.valor_pagamento
+            for pagamento in self.__pagamentos
+        )
 
     def pago(self) -> bool:
         return self.total_pago() >= self.valor_total
 
     def mostra_valor_restante(self) -> float:
-        restante = self.valor_total - self.total_pago()
-        return max(0.0, restante)
+        return max(
+            0.0, self.valor_total - self.total_pago()
+        )
 
     def adiciona_pagamento(self, pagamento):
         self.__pagamentos.append(pagamento)
 
+    def remove_pagamento(self, pagamento) -> None:
+        if pagamento in self.__pagamentos:
+            self.__pagamentos.remove(pagamento)
+
     def inclui_procedimento(self, procedimento: Procedimento):
-        if procedimento not in self.__procedimentos:
-            self.__procedimentos.append(procedimento)
+        self.__procedimentos.append(procedimento)
+
+    def remove_procedimento(self, procedimento: Procedimento) -> None:
+        if procedimento in self.__procedimentos:
+            self.__procedimentos.remove(procedimento)
 
     def mostra_dados(self) -> str:
-        data_formatada = self.data.strftime("%d/%m/%Y")
-        inicio_formatado = self.hora_inicio.strftime("%H:%M")
-        fim_formatado = self.hora_fim.strftime("%H:%M")
-        status_pago = "Sim" if self.pago() else "Não"
-        
         return (
-            f"Atendimento Nº {self.numero_atendimento} - Paciente: {self.paciente.nome}, "
-            f"Profissional: {self.profissional.nome}, Data: {data_formatada}, "
-            f"Horário: {inicio_formatado} às {fim_formatado}, "
-            f"Tipo: {self.tipo_atendimento.nome}, Valor Total: R$ {self.valor_total:.2f}, "
-            f"Pago: {status_pago}, Restante: R$ {self.mostra_valor_restante():.2f}"
+            f"Atendimento Nº {self.numero_atendimento} - "
+            f"Paciente: {self.paciente.nome}, "
+            f"Profissional: {self.profissional.nome}, "
+            f"Data: {self.data:%d/%m/%Y}, "
+            f"Horário: {self.hora_inicio:%H:%M} às "
+            f"{self.hora_fim:%H:%M}, "
+            f"Tipo: {self.tipo_atendimento.nome}, "
+            f"Valor Total: R$ {self.valor_total:.2f}, "
+            f"Pago: {'Sim' if self.pago() else 'Não'}, "
+            f"Restante: R$ {self.mostra_valor_restante():.2f}"
         )

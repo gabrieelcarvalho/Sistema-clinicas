@@ -1,15 +1,10 @@
+
 from datetime import time as Time
 
 
 class Clinica:
-    def __init__(
-        self,
-        nome: str,
-        cidade: str,
-        descricao: str,
-        horario_abertura: Time,
-        horario_fechamento: Time,
-    ):
+    def __init__(self, nome: str, cidade: str, descricao: str,
+                 horario_abertura: Time, horario_fechamento: Time):
         self.__nome = nome
         self.__cidade = cidade
         self.__descricao = descricao
@@ -71,8 +66,22 @@ class Clinica:
     def atendimentos(self) -> list:
         return self.__atendimentos
 
-    def esta_aberta_clinica(self, horario: Time) -> bool:
-        return self.horario_abertura <= horario <= self.horario_fechamento
+    def esta_aberta_clinica(
+        self, horario_inicio: Time, horario_fim: Time = None
+    ) -> bool:
+        if self.horario_abertura >= self.horario_fechamento:
+            return False
+
+        if horario_fim is None:
+            return (
+                self.horario_abertura <= horario_inicio
+                <= self.horario_fechamento
+            )
+
+        return (
+            self.horario_abertura <= horario_inicio
+            < horario_fim <= self.horario_fechamento
+        )
 
     def inclui_paciente(self, paciente):
         if paciente not in self.__pacientes:
@@ -99,9 +108,10 @@ class Clinica:
             self.__atendimentos.remove(atendimento)
 
     def mostra_dados(self) -> str:
-        abertura = self.horario_abertura.strftime("%H:%M")
-        fechamento = self.horario_fechamento.strftime("%H:%M")
         return (
-            f"Nome: {self.nome}, Cidade: {self.cidade}, Descrição: {self.descricao}, "
-            f"Horário de Funcionamento: {abertura}h às {fechamento}h"
+            f"Nome: {self.nome}, Cidade: {self.cidade}, "
+            f"Descrição: {self.descricao}, "
+            f"Horário de Funcionamento: "
+            f"{self.horario_abertura:%H:%M} às "
+            f"{self.horario_fechamento:%H:%M}"
         )
