@@ -1,4 +1,5 @@
 from datetime import datetime, date as Date, time as Time
+from exceptions.valor_invalido_exception import ValorInvalidoException
 
 
 class TelaAtendimento:
@@ -15,7 +16,12 @@ class TelaAtendimento:
     def pega_float(self, mensagem: str) -> float:
         while True:
             try:
-                return float(input(f"{mensagem}: "))
+                valor = float(input(f"{mensagem}: "))
+                if valor <= 0:
+                    raise ValorInvalidoException(valor)
+                return valor
+            except ValorInvalidoException as erro:
+                print(str(erro))
             except ValueError:
                 print("Valor inválido! Digite um número decimal.")
 
@@ -184,7 +190,7 @@ class TelaAtendimento:
         valor_str = input("Novo valor base do atendimento (ou Enter para manter): ").strip()
 
         codigo_tipo = int(codigo_tipo_str) if codigo_tipo_str.isdigit() else None
-        valor = float(valor_str) if valor_str else None
+        valor = float(valor_str) if valor_str and float(valor_str) > 0 else None
 
         return {
             "cpf_profissional": cpf_profissional if cpf_profissional else None,

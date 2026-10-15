@@ -14,7 +14,7 @@ from exceptions.paciente_nao_cadastrado_exception import PacienteNaoCadastradoEx
 from exceptions.profissional_nao_cadastrado_exception import ProfissionalNaoCadastradoException
 from exceptions.tipo_atendimento_nao_cadastrado_exception import TipoAtendimentoNaoCadastradoException
 from exceptions.acompanhante_menor_exception import AcompanhanteMenorDeIdadeException
-from exceptions.conflito_de_horario_exception import ConflitoDeHorarioException
+from exceptions.valor_invalido_exception import ValorInvalidoException
 
 
 class ControladorAtendimento:
@@ -55,28 +55,13 @@ class ControladorAtendimento:
     def valida_horario(self, clinica, ini: Time, fim: Time) -> bool:
         return clinica.esta_aberta_clinica(ini, fim)
 
-    def conflito_horario_profissional(
-        self,
-        profissional,
-        data: Date,
-        hora_inicio: Time,
-        hora_fim: Time,
-        numero_atendimento: int = None
-    ) -> bool:
-        for a in self.__atendimentos:
-            if numero_atendimento is not None and a.numero_atendimento == numero_atendimento:
-                continue
-
-            if a.profissional == profissional and a.data == data:
-                if hora_inicio < a.hora_fim and a.hora_inicio < hora_fim:
-                    raise ConflitoDeHorarioException()
-
-        return False
-
     def agenda_atendimento(self, atendimento: Atendimento) -> None:
         if not isinstance(atendimento, Atendimento):
             self.__tela_atendimento.mostra_mensagem("Atendimento inválido!")
             return
+
+        if atendimento.valor <= 0:
+            raise ValorInvalidoException(atendimento.valor)
 
         try:
             if not self.valida_maioridade(
@@ -94,27 +79,6 @@ class ControladorAtendimento:
 
         if self.busca_atendimento(atendimento.numero_atendimento) is not None:
             self.__tela_atendimento.mostra_mensagem("Número de atendimento já cadastrado!")
-            return
-
-        if not self.valida_horario(
-            atendimento.clinica,
-            atendimento.hora_inicio,
-            atendimento.hora_fim
-        ):
-            self.__tela_atendimento.mostra_mensagem(
-                "A clínica está fechada no horário solicitado!"
-            )
-            return
-
-        try:
-            self.conflito_horario_profissional(
-                atendimento.profissional,
-                atendimento.data,
-                atendimento.hora_inicio,
-                atendimento.hora_fim
-            )
-        except ConflitoDeHorarioException as erro:
-            self.__tela_atendimento.mostra_mensagem(str(erro))
             return
 
         self.__atendimentos.append(atendimento)
@@ -170,18 +134,6 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem(str(erro))
             return
 
-        try:
-            self.conflito_horario_profissional(
-                atendimento.profissional,
-                data,
-                hora_inicio,
-                hora_fim,
-                numero_atendimento=atendimento.numero_atendimento
-            )
-        except ConflitoDeHorarioException as erro:
-            self.__tela_atendimento.mostra_mensagem(str(erro))
-            return
-
         atendimento.data = data
         atendimento.hora_inicio = hora_inicio
         atendimento.hora_fim = hora_fim
@@ -193,25 +145,16 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem("Atendimento não encontrado!")
             return
 
+        if "valor" in dados and dados["valor"] is not None:
+            if dados["valor"] <= 0:
+                raise ValorInvalidoException(dados["valor"])
+            atendimento.valor = dados["valor"]
+
         if "profissional" in dados and dados["profissional"] is not None:
-            try:
-                self.conflito_horario_profissional(
-                    dados["profissional"],
-                    atendimento.data,
-                    atendimento.hora_inicio,
-                    atendimento.hora_fim,
-                    numero_atendimento=atendimento.numero_atendimento
-                )
-                atendimento.profissional = dados["profissional"]
-            except ConflitoDeHorarioException as erro:
-                self.__tela_atendimento.mostra_mensagem(str(erro))
-                return
+            atendimento.profissional = dados["profissional"]
 
         if "tipo_atendimento" in dados and dados["tipo_atendimento"] is not None:
             atendimento.tipo_atendimento = dados["tipo_atendimento"]
-
-        if "valor" in dados and dados["valor"] is not None:
-            atendimento.valor = dados["valor"]
 
         self.__tela_atendimento.mostra_mensagem("Atendimento alterado com sucesso!")
 
@@ -243,6 +186,13 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem("Atendimento não encontrado!")
             return
 
+        if pagamento.valor_pagamento <= 0:
+            raise ValorInvalidoException(pagamento.valor_pagamento)
+
+        if pagamento.valor_pagamento > atendimento.mostra_valor_restante() + 1e-9:
+            self.__tela_atendimento.mostra_mensagem("Valor do pagamento excede o valor restante do atendimento!")
+            return
+
         atendimento.adiciona_pagamento(pagamento)
         self.__tela_atendimento.mostra_mensagem("Pagamento registrado com sucesso!")
 
@@ -265,9 +215,19 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem("Pagamento não encontrado!")
             return
 
-        pagamento = atendimento.pagamentos[indice_pagamento]
         if "valor" in dados and dados["valor"] is not None:
-            pagamento.valor_pagamento = dados["valor"]
+            novo_valor = dados["valor"]
+            if novo_valor <= 0:
+                raise ValorInvalidoException(novo_valor)
+
+            pagamento_atual = atendimento.pagamentos[indice_pagamento]
+            diferenca = novo_valor - pagamento_atual.valor_pagamento
+
+            if diferenca > atendimento.mostra_valor_restante() + 1e-9:
+                self.__tela_atendimento.mostra_mensagem("Novo valor excede o total restante devido!")
+                return
+
+            pagamento_atual.valor_pagamento = novo_valor
 
         self.__tela_atendimento.mostra_mensagem("Pagamento alterado com sucesso!")
 
@@ -305,31 +265,13 @@ class ControladorAtendimento:
                     if tipo is None:
                         erros.append(str(TipoAtendimentoNaoCadastradoException(dados["codigo_tipo"])))
 
-                    # Lança exceção acumulada de dados ausentes
                     if erros:
                         raise Exception("\n".join(erros))
 
                     acompanhante = None
-
                     if not paciente.maior_de_idade(dados["data"]):
-                        self.__tela_atendimento.mostra_mensagem(
-                            "Informe o acompanhante do paciente menor de idade."
-                        )
-
-                        acompanhante = Acompanhante(
-                            **self.__tela_atendimento.pega_dados_acompanhante()
-                        )
-
-                        nascimento = acompanhante.data_nascimento
-                        data_atendimento = dados["data"]
-
-                        idade = data_atendimento.year - nascimento.year
-
-                        if (data_atendimento.month, data_atendimento.day) < (nascimento.month, nascimento.day):
-                            idade -= 1
-
-                        if idade < 18:
-                            raise AcompanhanteMenorDeIdadeException()
+                        self.__tela_atendimento.mostra_mensagem("Informe o acompanhante do paciente menor de idade.")
+                        acompanhante = Acompanhante(**self.__tela_atendimento.pega_dados_acompanhante())
 
                     atendimento = Atendimento(
                         clinica, paciente, profissional, dados["data"],
@@ -371,7 +313,7 @@ class ControladorAtendimento:
                         dados_p = self.__tela_atendimento.pega_dados_cartao()
                         pagamento = PagamentoCartao(
                             dados_p["data"], atendimento, dados_p["valor_pagamento"],
-                            dados_p["bandeira"], dados_p["numero"], dados_p["parcelas"]
+                            dados_p["bandeira"], dados_p["numero"]
                         )
                     else:
                         continue
