@@ -247,9 +247,26 @@ class ControladorAtendimento:
                         raise Exception("\n".join(erros))
 
                     acompanhante = None
+
                     if not paciente.maior_de_idade(dados["data"]):
-                        self.__tela_atendimento.mostra_mensagem("Informe o acompanhante do paciente menor de idade.")
-                        acompanhante = Acompanhante(**self.__tela_atendimento.pega_dados_acompanhante())
+                        self.__tela_atendimento.mostra_mensagem(
+                            "Informe o acompanhante do paciente menor de idade."
+                        )
+
+                        acompanhante = Acompanhante(
+                            **self.__tela_atendimento.pega_dados_acompanhante()
+                        )
+
+                        nascimento = acompanhante.data_nascimento
+                        data_atendimento = dados["data"]
+
+                        idade = data_atendimento.year - nascimento.year
+
+                        if (data_atendimento.month, data_atendimento.day) < (nascimento.month, nascimento.day):
+                            idade -= 1
+
+                        if idade < 18:
+                            raise AcompanhanteMenorDeIdadeException()
 
                     atendimento = Atendimento(
                         clinica, paciente, profissional, dados["data"],
