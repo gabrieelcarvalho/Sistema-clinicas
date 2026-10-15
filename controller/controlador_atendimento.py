@@ -13,6 +13,7 @@ from exceptions.clinica_nao_cadastrada_exception import ClinicaNaoCadastradaExce
 from exceptions.paciente_nao_cadastrado_exception import PacienteNaoCadastradoException
 from exceptions.profissional_nao_cadastrado_exception import ProfissionalNaoCadastradoException
 from exceptions.tipo_atendimento_nao_cadastrado_exception import TipoAtendimentoNaoCadastradoException
+from exceptions.excecoes import AcompanhanteMenorDeIdadeException
 
 
 class ControladorAtendimento:
@@ -32,14 +33,51 @@ class ControladorAtendimento:
             None
         )
 
-    def valida_maioridade(self, paciente: Paciente, acomp: Acompanhante) -> bool:
-        return paciente.maior_de_idade() or acomp is not None
+    def valida_maioridade(
+        self,
+        paciente: Paciente,
+        acomp: Acompanhante,
+        data_referencia: Date
+    ) -> bool:
+
+        if acomp is not None:
+            nascimento = acomp.data_nascimento
+
+            idade = data_referencia.year - nascimento.year
+
+            if (
+                data_referencia.month,
+                data_referencia.day
+            ) < (
+                nascimento.month,
+                nascimento.day
+            ):
+                idade -= 1
+
+            if idade < 18:
+                raise AcompanhanteMenorDeIdadeException()
+
+        return paciente.maior_de_idade(data_referencia) or acomp is not None
 
     def valida_horario(self, clinica, ini: Time, fim: Time) -> bool:
         return clinica.esta_aberta_clinica(ini, fim)
 
     def agenda_atendimento(self, atendimento: Atendimento) -> None:
         if not isinstance(atendimento, Atendimento):
+            try:
+                if not self.valida_maioridade(
+                    atendimento.paciente,
+                    atendimento.acompanhante,
+                    atendimento.data
+                ):
+                    self.__tela_atendimento.mostra_mensagem(
+                        "Paciente menor de idade precisa de acompanhante!"
+                    )
+                    return
+            except AcompanhanteMenorDeIdadeException as erro:
+                self.__tela_atendimento.mostra_mensagem(str(erro))
+                return
+
             self.__tela_atendimento.mostra_mensagem("Atendimento inválido!")
             return
 
@@ -86,6 +124,21 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem("Atendimento fora do horário de funcionamento da clínica!")
             return
 
+        try:
+            if not self.valida_maioridade(
+                atendimento.paciente,
+                atendimento.acompanhante,
+                data
+            ):
+                self.__tela_atendimento.mostra_mensagem(
+                    "Paciente menor de idade precisa de acompanhante!"
+                )
+                return
+
+        except AcompanhanteMenorDeIdadeException as erro:
+            self.__tela_atendimento.mostra_mensagem(str(erro))
+            return
+            
         atendimento.data = data
         atendimento.hora_inicio = hora_inicio
         atendimento.hora_fim = hora_fim
