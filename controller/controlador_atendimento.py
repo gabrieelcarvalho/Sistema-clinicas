@@ -14,6 +14,7 @@ from exceptions.paciente_nao_cadastrado_exception import PacienteNaoCadastradoEx
 from exceptions.profissional_nao_cadastrado_exception import ProfissionalNaoCadastradoException
 from exceptions.tipo_atendimento_nao_cadastrado_exception import TipoAtendimentoNaoCadastradoException
 from exceptions.acompanhante_menor_exception import AcompanhanteMenorDeIdadeException
+from exceptions.conflito_de_horario_exception import ConflitoDeHorarioException
 
 
 class ControladorAtendimento:
@@ -54,6 +55,24 @@ class ControladorAtendimento:
     def valida_horario(self, clinica, ini: Time, fim: Time) -> bool:
         return clinica.esta_aberta_clinica(ini, fim)
 
+    def conflito_horario_profissional(
+        self,
+        profissional,
+        data: Date,
+        hora_inicio: Time,
+        hora_fim: Time,
+        numero_atendimento: int = None
+    ) -> bool:
+        for a in self.__atendimentos:
+            if numero_atendimento is not None and a.numero_atendimento == numero_atendimento:
+                continue
+
+            if a.profissional == profissional and a.data == data:
+                if hora_inicio < a.hora_fim and a.hora_inicio < hora_fim:
+                    raise ConflitoDeHorarioException()
+
+        return False
+
     def agenda_atendimento(self, atendimento: Atendimento) -> None:
         if not isinstance(atendimento, Atendimento):
             self.__tela_atendimento.mostra_mensagem("Atendimento inválido!")
@@ -77,7 +96,6 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem("Número de atendimento já cadastrado!")
             return
 
-        
         if not self.valida_horario(
             atendimento.clinica,
             atendimento.hora_inicio,
@@ -86,6 +104,17 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem(
                 "A clínica está fechada no horário solicitado!"
             )
+            return
+
+        try:
+            self.conflito_horario_profissional(
+                atendimento.profissional,
+                atendimento.data,
+                atendimento.hora_inicio,
+                atendimento.hora_fim
+            )
+        except ConflitoDeHorarioException as erro:
+            self.__tela_atendimento.mostra_mensagem(str(erro))
             return
 
         self.__atendimentos.append(atendimento)
@@ -141,6 +170,18 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem(str(erro))
             return
 
+        try:
+            self.conflito_horario_profissional(
+                atendimento.profissional,
+                data,
+                hora_inicio,
+                hora_fim,
+                numero_atendimento=atendimento.numero_atendimento
+            )
+        except ConflitoDeHorarioException as erro:
+            self.__tela_atendimento.mostra_mensagem(str(erro))
+            return
+
         atendimento.data = data
         atendimento.hora_inicio = hora_inicio
         atendimento.hora_fim = hora_fim
@@ -153,7 +194,18 @@ class ControladorAtendimento:
             return
 
         if "profissional" in dados and dados["profissional"] is not None:
-            atendimento.profissional = dados["profissional"]
+            try:
+                self.conflito_horario_profissional(
+                    dados["profissional"],
+                    atendimento.data,
+                    atendimento.hora_inicio,
+                    atendimento.hora_fim,
+                    numero_atendimento=atendimento.numero_atendimento
+                )
+                atendimento.profissional = dados["profissional"]
+            except ConflitoDeHorarioException as erro:
+                self.__tela_atendimento.mostra_mensagem(str(erro))
+                return
 
         if "tipo_atendimento" in dados and dados["tipo_atendimento"] is not None:
             atendimento.tipo_atendimento = dados["tipo_atendimento"]
