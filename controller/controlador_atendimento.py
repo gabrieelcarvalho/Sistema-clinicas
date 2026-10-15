@@ -13,7 +13,7 @@ from exceptions.clinica_nao_cadastrada_exception import ClinicaNaoCadastradaExce
 from exceptions.paciente_nao_cadastrado_exception import PacienteNaoCadastradoException
 from exceptions.profissional_nao_cadastrado_exception import ProfissionalNaoCadastradoException
 from exceptions.tipo_atendimento_nao_cadastrado_exception import TipoAtendimentoNaoCadastradoException
-from exceptions.excecoes import AcompanhanteMenorDeIdadeException
+from exceptions.acompanhante_menor_exception import AcompanhanteMenorDeIdadeException
 
 
 class ControladorAtendimento:
@@ -138,7 +138,7 @@ class ControladorAtendimento:
         except AcompanhanteMenorDeIdadeException as erro:
             self.__tela_atendimento.mostra_mensagem(str(erro))
             return
-            
+
         atendimento.data = data
         atendimento.hora_inicio = hora_inicio
         atendimento.hora_fim = hora_fim
