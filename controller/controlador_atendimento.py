@@ -39,19 +39,11 @@ class ControladorAtendimento:
         acomp: Acompanhante,
         data_referencia: Date
     ) -> bool:
-
         if acomp is not None:
             nascimento = acomp.data_nascimento
-
             idade = data_referencia.year - nascimento.year
 
-            if (
-                data_referencia.month,
-                data_referencia.day
-            ) < (
-                nascimento.month,
-                nascimento.day
-            ):
+            if (data_referencia.month, data_referencia.day) < (nascimento.month, nascimento.day):
                 idade -= 1
 
             if idade < 18:
@@ -64,21 +56,21 @@ class ControladorAtendimento:
 
     def agenda_atendimento(self, atendimento: Atendimento) -> None:
         if not isinstance(atendimento, Atendimento):
-            try:
-                if not self.valida_maioridade(
-                    atendimento.paciente,
-                    atendimento.acompanhante,
-                    atendimento.data
-                ):
-                    self.__tela_atendimento.mostra_mensagem(
-                        "Paciente menor de idade precisa de acompanhante!"
-                    )
-                    return
-            except AcompanhanteMenorDeIdadeException as erro:
-                self.__tela_atendimento.mostra_mensagem(str(erro))
-                return
-
             self.__tela_atendimento.mostra_mensagem("Atendimento inválido!")
+            return
+
+        try:
+            if not self.valida_maioridade(
+                atendimento.paciente,
+                atendimento.acompanhante,
+                atendimento.data
+            ):
+                self.__tela_atendimento.mostra_mensagem(
+                    "Paciente menor de idade precisa de acompanhante!"
+                )
+                return
+        except AcompanhanteMenorDeIdadeException as erro:
+            self.__tela_atendimento.mostra_mensagem(str(erro))
             return
 
         if self.busca_atendimento(atendimento.numero_atendimento) is not None:
@@ -134,7 +126,6 @@ class ControladorAtendimento:
                     "Paciente menor de idade precisa de acompanhante!"
                 )
                 return
-
         except AcompanhanteMenorDeIdadeException as erro:
             self.__tela_atendimento.mostra_mensagem(str(erro))
             return
@@ -251,7 +242,7 @@ class ControladorAtendimento:
                     if tipo is None:
                         erros.append(str(TipoAtendimentoNaoCadastradoException(dados["codigo_tipo"])))
 
-                    # Se houver um ou mais erros acumulados, lança a exceção combinando todos
+                    # Lança exceção acumulada de dados ausentes
                     if erros:
                         raise Exception("\n".join(erros))
 

@@ -30,7 +30,7 @@ class ControladorRelatorio:
     def relatorio_atendimentos_caros_baratos(self) -> None:
         atendimentos = self.__controlador_sistema.controlador_atendimento.atendimentos
         if not atendimentos:
-            self.__tela_relatorio.mostra_mensagem("Nenhum atendimento registado.")
+            self.__tela_relatorio.mostra_mensagem("Nenhum atendimento registrado.")
             return
 
         mais_caro = max(atendimentos, key=lambda a: a.valor_total)
@@ -99,23 +99,24 @@ class ControladorRelatorio:
         pass
 
     def abre_tela(self) -> None:
-        lista_opcoes = {
-            1: self.relatorio_clinicas_mais_atendimentos,
-            2: self.relatorio_atendimentos_caros_baratos,
-            3: self.relatorio_procedimentos_populares,
-            4: self.relatorio_procedimentos_caros_baratos,
-            0: self.retorna,
-        }
-
         while True:
-            opcao_escolhida = self.__tela_relatorio.tela_opcoes()
-            funcao_escolhida = lista_opcoes.get(opcao_escolhida)
+            try:
+                opcao = self.__tela_relatorio.tela_opcoes()
 
-            if funcao_escolhida:
-                funcao_escolhida()
-                if opcao_escolhida == 0:
+                if opcao == 1:
+                    self.relatorio_clinicas_mais_atendimentos()
+                elif opcao == 2:
+                    self.relatorio_atendimentos_caros_baratos()
+                elif opcao == 3:
+                    self.relatorio_procedimentos_populares()
+                elif opcao == 4:
+                    self.relatorio_procedimentos_caros_baratos()
+                elif opcao == 0:
+                    self.retorna()
                     break
-            else:
-                self.__tela_relatorio.mostra_mensagem(
-                    "Opção inválida! Escolha um número do menu."
-                )
+                else:
+                    self.__tela_relatorio.mostra_mensagem(
+                        "Opção inválida! Escolha um número do menu."
+                    )
+            except Exception as erro:
+                self.__tela_relatorio.mostra_mensagem(str(erro))
