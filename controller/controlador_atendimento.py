@@ -77,6 +77,17 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem("Número de atendimento já cadastrado!")
             return
 
+        
+        if not self.valida_horario(
+            atendimento.clinica,
+            atendimento.hora_inicio,
+            atendimento.hora_fim
+        ):
+            self.__tela_atendimento.mostra_mensagem(
+                "A clínica está fechada no horário solicitado!"
+            )
+            return
+
         self.__atendimentos.append(atendimento)
         atendimento.clinica.registra_atendimento(atendimento)
         atendimento.clinica.inclui_paciente(atendimento.paciente)
