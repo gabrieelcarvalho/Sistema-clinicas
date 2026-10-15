@@ -1,4 +1,3 @@
-
 from datetime import date as Date, time as Time
 from model.atendimento import Atendimento
 from model.paciente import Paciente
@@ -9,20 +8,11 @@ from model.pagamentopix import PagamentoPix
 from model.pagamentocartao import PagamentoCartao
 from model.procedimento import Procedimento
 from view.tela_atendimento import TelaAtendimento
-from excecoes import (
-    ErroSistemaClinicas,
-    DadosInvalidosError,
-    RegistroNaoEncontradoError,
-    PacienteMenorDesacompanhadoError,
-    HorarioInvalidoError,
-    AtendimentoForaDoHorarioError,
-    ConflitoDeHorarioError,
-    PagamentoForaDoPrazoError,
-    ValorPagamentoInvalidoError,
-    PagamentoExcedenteError,
-    PagamentoDeOutroAtendimentoError,
-    ModalidadePagamentoInvalidaError
-)
+
+from exceptions.clinica_nao_cadastrada_exception import ClinicaNaoCadastradaException
+from exceptions.paciente_nao_cadastrado_exception import PacienteNaoCadastradoException
+from exceptions.profissional_nao_cadastrado_exception import ProfissionalNaoCadastradoException
+from exceptions.tipo_atendimento_nao_cadastrado_exception import TipoAtendimentoNaoCadastradoException
 
 
 class ControladorAtendimento:
@@ -30,988 +20,338 @@ class ControladorAtendimento:
         self.__controlador_sistema = controlador_sistema
         self.__tela_atendimento = TelaAtendimento()
         self.__atendimentos = []
+        self.__proximo_numero = 1
 
     @property
     def atendimentos(self) -> list:
         return self.__atendimentos
 
-    def busca_atendimento(self, numero_atendimento: int):
+    def busca_atendimento(self, numero_atendimento: int) -> Atendimento:
         return next(
-            (
-                a for a in self.__atendimentos
-                if a.numero_atendimento == numero_atendimento
-            ),
+            (a for a in self.__atendimentos if a.numero_atendimento == numero_atendimento),
             None
         )
 
-    def valida_maioridade(
-        self, paciente: Paciente,
-        acomp: Acompanhante,
-        data_referencia: Date = None
-    ) -> bool:
-        return (
-            paciente.maior_de_idade(data_referencia)
-            or acomp is not None
-        )
+    def valida_maioridade(self, paciente: Paciente, acomp: Acompanhante) -> bool:
+        return paciente.maior_de_idade() or acomp is not None
 
-    def valida_horario(
-        self, clinica, ini: Time, fim: Time
-    ) -> bool:
+    def valida_horario(self, clinica, ini: Time, fim: Time) -> bool:
         return clinica.esta_aberta_clinica(ini, fim)
 
-    def __confere_conflito(
-        self, profissional, data: Date,
-        inicio: Time, fim: Time, ignorar=None
-    ) -> None:
-        for atual in self.__atendimentos:
-            if atual is ignorar:
-                continue
-
-            if (
-                atual.profissional is profissional
-                and atual.data == data
-                and inicio < atual.hora_fim
-                and fim > atual.hora_inicio
-            ):
-                raise ConflitoDeHorarioError()
-
-    def __valida_agendamento(
-        self, atendimento: Atendimento
-    ) -> None:
+    def agenda_atendimento(self, atendimento: Atendimento) -> None:
         if not isinstance(atendimento, Atendimento):
-            raise DadosInvalidosError(
-                "Atendimento inválido!"
-            )
+            self.__tela_atendimento.mostra_mensagem("Atendimento inválido!")
+            return
 
-        if not 0 <= atendimento.valor < float("inf"):
-            raise DadosInvalidosError(
-                "Valor do atendimento inválido!"
-            )
+        if self.busca_atendimento(atendimento.numero_atendimento) is not None:
+            self.__tela_atendimento.mostra_mensagem("Número de atendimento já cadastrado!")
+            return
 
-        if not self.valida_maioridade(
-            atendimento.paciente,
-            atendimento.acompanhante,
-            atendimento.data
-        ):
-            raise PacienteMenorDesacompanhadoError()
+        self.__atendimentos.append(atendimento)
+        atendimento.clinica.registra_atendimento(atendimento)
+        atendimento.clinica.inclui_paciente(atendimento.paciente)
+        atendimento.clinica.inclui_profissional(atendimento.profissional)
 
-        if atendimento.hora_inicio >= atendimento.hora_fim:
-            raise HorarioInvalidoError()
+        self.__proximo_numero += 1
+        self.__tela_atendimento.mostra_mensagem("Atendimento agendado com sucesso!")
 
-        if not self.valida_horario(
-            atendimento.clinica,
-            atendimento.hora_inicio,
-            atendimento.hora_fim
-        ):
-            raise AtendimentoForaDoHorarioError()
-
-        self.__confere_conflito(
-            atendimento.profissional,
-            atendimento.data,
-            atendimento.hora_inicio,
-            atendimento.hora_fim,
-            ignorar=atendimento
-        )
-
-    def agenda_atendimento(
-        self, atendimento: Atendimento
-    ) -> None:
-        try:
-            if not isinstance(atendimento, Atendimento):
-                raise DadosInvalidosError(
-                    "Atendimento inválido!"
-                )
-
-            if self.busca_atendimento(
-                atendimento.numero_atendimento
-            ):
-                raise DadosInvalidosError(
-                    "Número de atendimento já utilizado!"
-                )
-
-            self.__valida_agendamento(atendimento)
-
-            self.__atendimentos.append(atendimento)
-
-            atendimento.clinica.registra_atendimento(
-                atendimento
-            )
-
-            atendimento.clinica.inclui_paciente(
-                atendimento.paciente
-            )
-
-            atendimento.clinica.inclui_profissional(
-                atendimento.profissional
-            )
-
-            self.__tela_atendimento.mostra_mensagem(
-                "Atendimento agendado com sucesso!"
-            )
-
-        except ErroSistemaClinicas as erro:
-            self.__tela_atendimento.mostra_mensagem(
-                str(erro)
-            )
-
-    def cancela_atendimento(
-        self, numero_atendimento: int
-    ) -> None:
-        atendimento = self.busca_atendimento(
-            numero_atendimento
-        )
-
+    def cancela_atendimento(self, numero_atendimento: int) -> None:
+        atendimento = self.busca_atendimento(numero_atendimento)
         if atendimento is None:
-            self.__tela_atendimento.mostra_mensagem(
-                "Atendimento não encontrado!"
-            )
+            self.__tela_atendimento.mostra_mensagem("Atendimento não encontrado!")
             return
 
         self.__atendimentos.remove(atendimento)
+        atendimento.clinica.cancela_atendimento(atendimento)
 
-        atendimento.clinica.cancela_atendimento(
-            atendimento
-        )
+        if not any(a.clinica is atendimento.clinica and a.paciente is atendimento.paciente for a in self.__atendimentos):
+            atendimento.clinica.exclui_paciente(atendimento.paciente)
 
-        if not any(
-            a.clinica is atendimento.clinica
-            and a.paciente is atendimento.paciente
-            for a in self.__atendimentos
-        ):
-            atendimento.clinica.exclui_paciente(
-                atendimento.paciente
-            )
+        if not any(a.clinica is atendimento.clinica and a.profissional is atendimento.profissional for a in self.__atendimentos):
+            atendimento.clinica.exclui_profissional(atendimento.profissional)
 
-        if not any(
-            a.clinica is atendimento.clinica
-            and a.profissional is atendimento.profissional
-            for a in self.__atendimentos
-        ):
-            atendimento.clinica.exclui_profissional(
-                atendimento.profissional
-            )
+        self.__tela_atendimento.mostra_mensagem("Atendimento cancelado com sucesso!")
 
-        self.__tela_atendimento.mostra_mensagem(
-            "Atendimento cancelado com sucesso!"
-        )
-
-    def reagenda_atendimento(
-        self, numero_atendimento: int,
-        hora_inicio: Time, hora_fim: Time,
-        data: Date
-    ) -> None:
-        try:
-            atendimento = self.busca_atendimento(
-                numero_atendimento
-            )
-
-            if atendimento is None:
-                raise RegistroNaoEncontradoError(
-                    "Atendimento não encontrado!"
-                )
-
-            if hora_inicio >= hora_fim:
-                raise HorarioInvalidoError()
-
-            if not self.valida_horario(
-                atendimento.clinica,
-                hora_inicio,
-                hora_fim
-            ):
-                raise AtendimentoForaDoHorarioError()
-
-            if not self.valida_maioridade(
-                atendimento.paciente,
-                atendimento.acompanhante,
-                data
-            ):
-                raise PacienteMenorDesacompanhadoError()
-
-            if any(
-                pagamento.data > data
-                for pagamento in atendimento.pagamentos
-            ):
-                raise PagamentoForaDoPrazoError(
-                    "Há pagamentos posteriores à nova data!"
-                )
-
-            self.__confere_conflito(
-                atendimento.profissional,
-                data,
-                hora_inicio,
-                hora_fim,
-                ignorar=atendimento
-            )
-
-            atendimento.data = data
-            atendimento.hora_inicio = hora_inicio
-            atendimento.hora_fim = hora_fim
-
-            self.__tela_atendimento.mostra_mensagem(
-                "Atendimento reagendado com sucesso!"
-            )
-
-        except ErroSistemaClinicas as erro:
-            self.__tela_atendimento.mostra_mensagem(
-                str(erro)
-            )
-
-    def altera_atendimento(
-        self, numero_atendimento: int, dados: dict
-    ) -> None:
-        try:
-            atendimento = self.busca_atendimento(
-                numero_atendimento
-            )
-
-            if atendimento is None:
-                raise RegistroNaoEncontradoError(
-                    "Atendimento não encontrado!"
-                )
-
-            profissional = (
-                dados.get("profissional")
-                or atendimento.profissional
-            )
-
-            tipo = (
-                dados.get("tipo_atendimento")
-                or atendimento.tipo_atendimento
-            )
-
-            valor = (
-                atendimento.valor
-                if dados.get("valor") is None
-                else dados["valor"]
-            )
-
-            if not 0 <= valor < float("inf"):
-                raise DadosInvalidosError(
-                    "Valor inválido!"
-                )
-
-            total = valor + sum(
-                p.custo
-                for p in atendimento.procedimentos
-            )
-
-            if total + 1e-9 < atendimento.total_pago():
-                raise PagamentoExcedenteError(
-                    "O novo valor é inferior ao total já pago!"
-                )
-
-            self.__confere_conflito(
-                profissional,
-                atendimento.data,
-                atendimento.hora_inicio,
-                atendimento.hora_fim,
-                ignorar=atendimento
-            )
-
-            anterior = atendimento.profissional
-
-            atendimento.profissional = profissional
-            atendimento.tipo_atendimento = tipo
-            atendimento.valor = valor
-
-            if anterior is not profissional:
-                atendimento.clinica.inclui_profissional(
-                    profissional
-                )
-
-                if not any(
-                    a.clinica is atendimento.clinica
-                    and a.profissional is anterior
-                    for a in self.__atendimentos
-                ):
-                    atendimento.clinica.exclui_profissional(
-                        anterior
-                    )
-
-            self.__tela_atendimento.mostra_mensagem(
-                "Atendimento alterado com sucesso!"
-            )
-
-        except ErroSistemaClinicas as erro:
-            self.__tela_atendimento.mostra_mensagem(
-                str(erro)
-            )
-
-    def inclui_procedimento(
-        self, numero_atendimento: int,
-        procedimento: Procedimento
-    ) -> None:
-        atendimento = self.busca_atendimento(
-            numero_atendimento
-        )
-
-        if (
-            atendimento is None
-            or not isinstance(procedimento, Procedimento)
-        ):
-            self.__tela_atendimento.mostra_mensagem(
-                "Atendimento ou procedimento inválido!"
-            )
-            return
-
-        atendimento.inclui_procedimento(
-            procedimento
-        )
-
-        self.__tela_atendimento.mostra_mensagem(
-            "Procedimento incluído com sucesso!"
-        )
-
-    def exclui_procedimento_atendimento(
-        self, numero_atendimento: int, indice: int
-    ) -> None:
-        atendimento = self.busca_atendimento(
-            numero_atendimento
-        )
-
-        if (
-            atendimento is None
-            or not 0 <= indice < len(atendimento.procedimentos)
-        ):
-            self.__tela_atendimento.mostra_mensagem(
-                "Procedimento não encontrado!"
-            )
-            return
-
-        procedimento = atendimento.procedimentos[indice]
-
-        if (
-            atendimento.total_pago()
-            > atendimento.valor_total - procedimento.custo + 1e-9
-        ):
-            self.__tela_atendimento.mostra_mensagem(
-                "Exclusão deixaria total pago maior "
-                "que o valor do atendimento!"
-            )
-            return
-
-        atendimento.procedimentos.pop(indice)
-
-        self.__tela_atendimento.mostra_mensagem(
-            "Procedimento removido do atendimento!"
-        )
-
-    def __valida_pagamento(
-        self, atendimento, pagamento: Pagamento
-    ) -> None:
-        if not isinstance(pagamento, Pagamento):
-            raise DadosInvalidosError(
-                "Objeto de pagamento inválido!"
-            )
-
-        if pagamento.atendimento is not atendimento:
-            raise PagamentoDeOutroAtendimentoError()
-
-        if pagamento.data > atendimento.data:
-            raise PagamentoForaDoPrazoError()
-
-        if not 0 < pagamento.valor_pagamento < float("inf"):
-            raise ValorPagamentoInvalidoError()
-
-        if isinstance(pagamento, PagamentoPix):
-            if not pagamento.cpf.strip():
-                raise DadosInvalidosError(
-                    "Informe o CPF do pagador!"
-                )
-
-        if isinstance(pagamento, PagamentoCartao):
-            if (
-                pagamento.parcelas < 1
-                or not pagamento.numero.strip()
-                or not pagamento.bandeira.strip()
-            ):
-                raise DadosInvalidosError(
-                    "Número, bandeira e parcelas "
-                    "do cartão são obrigatórios!"
-                )
-
-    def registra_pagamento(
-        self, numero_atendimento: int,
-        pagamento: Pagamento
-    ) -> None:
-        try:
-            atendimento = self.busca_atendimento(
-                numero_atendimento
-            )
-
-            if atendimento is None:
-                raise RegistroNaoEncontradoError(
-                    "Atendimento não encontrado!"
-                )
-
-            self.__valida_pagamento(
-                atendimento, pagamento
-            )
-
-            if (
-                pagamento.valor_pagamento
-                > atendimento.mostra_valor_restante() + 1e-9
-            ):
-                raise PagamentoExcedenteError()
-
-            atendimento.adiciona_pagamento(
-                pagamento
-            )
-
-            self.__tela_atendimento.mostra_mensagem(
-                "Pagamento registrado com sucesso!"
-            )
-
-        except ErroSistemaClinicas as erro:
-            self.__tela_atendimento.mostra_mensagem(
-                str(erro)
-            )
-
-    def lista_pagamentos(
-        self, numero_atendimento: int
-    ) -> list:
-        atendimento = self.busca_atendimento(
-            numero_atendimento
-        )
-
-        return (
-            list(atendimento.pagamentos)
-            if atendimento is not None
-            else []
-        )
-
-    def exclui_pagamento(
-        self, numero_atendimento: int, indice: int
-    ) -> None:
-        atendimento = self.busca_atendimento(
-            numero_atendimento
-        )
-
-        if (
-            atendimento is None
-            or not 0 <= indice < len(atendimento.pagamentos)
-        ):
-            self.__tela_atendimento.mostra_mensagem(
-                "Pagamento não encontrado!"
-            )
-            return
-
-        atendimento.pagamentos.pop(indice)
-
-        self.__tela_atendimento.mostra_mensagem(
-            "Pagamento excluído com sucesso!"
-        )
-
-    def altera_pagamento(
-        self, numero_atendimento: int,
-        indice: int, novo_pagamento: Pagamento
-    ) -> None:
-        try:
-            atendimento = self.busca_atendimento(
-                numero_atendimento
-            )
-
-            if (
-                atendimento is None
-                or not 0 <= indice < len(atendimento.pagamentos)
-            ):
-                raise RegistroNaoEncontradoError(
-                    "Pagamento não encontrado!"
-                )
-
-            self.__valida_pagamento(
-                atendimento, novo_pagamento
-            )
-
-            total_outros = sum(
-                p.valor_pagamento
-                for i, p in enumerate(atendimento.pagamentos)
-                if i != indice
-            )
-
-            if (
-                total_outros + novo_pagamento.valor_pagamento
-                > atendimento.valor_total + 1e-9
-            ):
-                raise PagamentoExcedenteError()
-
-            atendimento.pagamentos[indice] = novo_pagamento
-
-            self.__tela_atendimento.mostra_mensagem(
-                "Pagamento alterado com sucesso!"
-            )
-
-        except ErroSistemaClinicas as erro:
-            self.__tela_atendimento.mostra_mensagem(
-                str(erro)
-            )
-
-    def __cria_pagamento(self, atendimento):
-        modalidade = (
-            self.__tela_atendimento
-            .seleciona_forma_pagamento()
-        )
-
-        if modalidade == 1:
-            dados = (
-                self.__tela_atendimento
-                .pega_dados_dinheiro()
-            )
-
-            return PagamentoDinheiro(
-                dados["data"],
-                atendimento,
-                dados["valor_pagamento"]
-            )
-
-        if modalidade == 2:
-            dados = (
-                self.__tela_atendimento
-                .pega_dados_pix()
-            )
-
-            return PagamentoPix(
-                dados["data"],
-                atendimento,
-                dados["valor_pagamento"],
-                dados["cpf"]
-            )
-
-        if modalidade == 3:
-            dados = (
-                self.__tela_atendimento
-                .pega_dados_cartao()
-            )
-
-            return PagamentoCartao(
-                dados["data"],
-                atendimento,
-                dados["valor_pagamento"],
-                dados["bandeira"],
-                dados["numero"],
-                dados["parcelas"]
-            )
-
-        raise ModalidadePagamentoInvalidaError()
-
-    def __agendar(self):
-        dados = (
-            self.__tela_atendimento
-            .pega_dados_agendamento()
-        )
-
-        sistema = self.__controlador_sistema
-
-        clinica = (
-            sistema.controlador_clinica.busca_clinica(
-                dados["nome_clinica"]
-            )
-        )
-
-        paciente = (
-            sistema.controlador_paciente.busca_paciente(
-                dados["cpf_paciente"]
-            )
-        )
-
-        profissional = (
-            sistema.controlador_profissional.busca_profissional(
-                dados["cpf_profissional"]
-            )
-        )
-
-        tipo = (
-            sistema.controlador_tipo_atendimento
-            .busca_tipo_atendimento(
-                dados["codigo_tipo"]
-            )
-        )
-
-        if None in (
-            clinica, paciente, profissional, tipo
-        ):
-            self.__tela_atendimento.mostra_mensagem(
-                "Clínica, paciente, profissional "
-                "ou tipo não encontrado!"
-            )
-            return
-
-        acompanhante = None
-
-        if not paciente.maior_de_idade(dados["data"]):
-            self.__tela_atendimento.mostra_mensagem(
-                "Informe o acompanhante do "
-                "paciente menor de idade."
-            )
-
-            acompanhante = Acompanhante(
-                **self.__tela_atendimento
-                .pega_dados_acompanhante()
-            )
-
-        atendimento = Atendimento(
-            clinica,
-            paciente,
-            profissional,
-            dados["data"],
-            dados["hora_inicio"],
-            dados["hora_fim"],
-            tipo,
-            dados["valor"],
-            dados["numero_atendimento"],
-            acompanhante
-        )
-
-        self.agenda_atendimento(atendimento)
-
-    def __reagendar(self):
-        numero = (
-            self.__tela_atendimento
-            .seleciona_atendimento()
-        )
-
-        dados = (
-            self.__tela_atendimento
-            .pega_dados_reagendamento()
-        )
-
-        self.reagenda_atendimento(
-            numero,
-            dados["hora_inicio"],
-            dados["hora_fim"],
-            dados["data"]
-        )
-
-    def __alterar_dados(self):
-        numero = (
-            self.__tela_atendimento
-            .seleciona_atendimento()
-        )
-
-        if self.busca_atendimento(numero) is None:
-            self.__tela_atendimento.mostra_mensagem(
-                "Atendimento não encontrado!"
-            )
-            return
-
-        dados = (
-            self.__tela_atendimento
-            .pega_dados_alteracao()
-        )
-
-        atualizacoes = {
-            "valor": dados["valor"]
-        }
-
-        if dados["cpf_profissional"]:
-            profissional = (
-                self.__controlador_sistema
-                .controlador_profissional
-                .busca_profissional(
-                    dados["cpf_profissional"]
-                )
-            )
-
-            if profissional is None:
-                self.__tela_atendimento.mostra_mensagem(
-                    "Profissional não encontrado!"
-                )
-                return
-
-            atualizacoes["profissional"] = profissional
-
-        if dados["codigo_tipo"] is not None:
-            tipo = (
-                self.__controlador_sistema
-                .controlador_tipo_atendimento
-                .busca_tipo_atendimento(
-                    dados["codigo_tipo"]
-                )
-            )
-
-            if tipo is None:
-                self.__tela_atendimento.mostra_mensagem(
-                    "Tipo não encontrado!"
-                )
-                return
-
-            atualizacoes["tipo_atendimento"] = tipo
-
-        self.altera_atendimento(
-            numero, atualizacoes
-        )
-
-    def __cancelar(self):
-        numero = (
-            self.__tela_atendimento
-            .seleciona_atendimento()
-        )
-
-        self.cancela_atendimento(numero)
-
-    def __incluir_proc(self):
-        numero = (
-            self.__tela_atendimento
-            .seleciona_atendimento()
-        )
-
-        descricao = (
-            self.__tela_atendimento
-            .seleciona_procedimento()
-        )
-
-        proc = (
-            self.__controlador_sistema
-            .controlador_procedimento
-            .busca_procedimento(descricao)
-        )
-
-        self.inclui_procedimento(
-            numero, proc
-        )
-
-    def __pagar(self):
-        numero = (
-            self.__tela_atendimento
-            .seleciona_atendimento()
-        )
-
-        atendimento = self.busca_atendimento(
-            numero
-        )
-
+    def reagenda_atendimento(self, numero_atendimento: int, hora_inicio: Time, hora_fim: Time, data: Date) -> None:
+        atendimento = self.busca_atendimento(numero_atendimento)
         if atendimento is None:
-            self.__tela_atendimento.mostra_mensagem(
-                "Atendimento não encontrado!"
-            )
+            self.__tela_atendimento.mostra_mensagem("Atendimento não encontrado!")
             return
 
-        pagamento = self.__cria_pagamento(atendimento)
-
-        self.registra_pagamento(
-            numero, pagamento
-        )
-
-    def __listar_pagamentos(self):
-        numero = (
-            self.__tela_atendimento
-            .seleciona_atendimento()
-        )
-
-        if self.busca_atendimento(numero) is None:
-            self.__tela_atendimento.mostra_mensagem(
-                "Atendimento não encontrado!"
-            )
+        if hora_inicio >= hora_fim:
+            self.__tela_atendimento.mostra_mensagem("Horário final deve ser posterior ao inicial!")
             return
 
-        pagamentos = self.lista_pagamentos(numero)
-
-        self.__tela_atendimento.mostra_pagamentos(
-            [
-                p.mostra_dados()
-                for p in pagamentos
-            ]
-        )
-
-    def __alterar_pagamento(self):
-        numero = (
-            self.__tela_atendimento
-            .seleciona_atendimento()
-        )
-
-        atendimento = self.busca_atendimento(
-            numero
-        )
-
-        if (
-            atendimento is None
-            or not atendimento.pagamentos
-        ):
-            self.__tela_atendimento.mostra_mensagem(
-                "Atendimento sem pagamentos!"
-            )
+        if not self.valida_horario(atendimento.clinica, hora_inicio, hora_fim):
+            self.__tela_atendimento.mostra_mensagem("Atendimento fora do horário de funcionamento da clínica!")
             return
 
-        self.__tela_atendimento.mostra_pagamentos(
-            [
-                p.mostra_dados()
-                for p in atendimento.pagamentos
-            ]
-        )
+        atendimento.data = data
+        atendimento.hora_inicio = hora_inicio
+        atendimento.hora_fim = hora_fim
+        self.__tela_atendimento.mostra_mensagem("Atendimento reagendado com sucesso!")
 
-        indice = (
-            self.__tela_atendimento.seleciona_indice(
-                "Número do pagamento"
-            )
-        )
-
-        if not 0 <= indice < len(atendimento.pagamentos):
-            self.__tela_atendimento.mostra_mensagem(
-                "Pagamento não encontrado!"
-            )
-            return
-
-        novo_pagamento = self.__cria_pagamento(
-            atendimento
-        )
-
-        self.altera_pagamento(
-            numero,
-            indice,
-            novo_pagamento
-        )
-
-    def __excluir_pagamento(self):
-        numero = (
-            self.__tela_atendimento
-            .seleciona_atendimento()
-        )
-
-        pagamentos = self.lista_pagamentos(numero)
-
-        if not pagamentos:
-            self.__tela_atendimento.mostra_mensagem(
-                "Nenhum pagamento encontrado!"
-            )
-            return
-
-        self.__tela_atendimento.mostra_pagamentos(
-            [
-                p.mostra_dados()
-                for p in pagamentos
-            ]
-        )
-
-        indice = (
-            self.__tela_atendimento.seleciona_indice(
-                "Número do pagamento"
-            )
-        )
-
-        self.exclui_pagamento(
-            numero, indice
-        )
-
-    def __listar_procedimentos(self):
-        numero = (
-            self.__tela_atendimento
-            .seleciona_atendimento()
-        )
-
-        atendimento = self.busca_atendimento(
-            numero
-        )
-
+    def altera_atendimento(self, numero_atendimento: int, dados: dict) -> None:
+        atendimento = self.busca_atendimento(numero_atendimento)
         if atendimento is None:
-            self.__tela_atendimento.mostra_mensagem(
-                "Atendimento não encontrado!"
-            )
+            self.__tela_atendimento.mostra_mensagem("Atendimento não encontrado!")
             return
 
-        self.__tela_atendimento.mostra_procedimentos(
-            [
-                p.mostra_dados()
-                for p in atendimento.procedimentos
-            ]
-        )
+        if "profissional" in dados and dados["profissional"] is not None:
+            atendimento.profissional = dados["profissional"]
 
-    def __excluir_procedimento(self):
-        numero = (
-            self.__tela_atendimento
-            .seleciona_atendimento()
-        )
+        if "tipo_atendimento" in dados and dados["tipo_atendimento"] is not None:
+            atendimento.tipo_atendimento = dados["tipo_atendimento"]
 
-        atendimento = self.busca_atendimento(
-            numero
-        )
+        if "valor" in dados and dados["valor"] is not None:
+            atendimento.valor = dados["valor"]
 
-        if (
-            atendimento is None
-            or not atendimento.procedimentos
-        ):
-            self.__tela_atendimento.mostra_mensagem(
-                "Atendimento sem procedimentos!"
-            )
+        self.__tela_atendimento.mostra_mensagem("Atendimento alterado com sucesso!")
+
+    def inclui_procedimento(self, numero_atendimento: int, procedimento: Procedimento) -> None:
+        atendimento = self.busca_atendimento(numero_atendimento)
+        if atendimento is None or procedimento is None:
+            self.__tela_atendimento.mostra_mensagem("Atendimento ou procedimento inválido!")
             return
 
-        self.__tela_atendimento.mostra_procedimentos(
-            [
-                p.mostra_dados()
-                for p in atendimento.procedimentos
-            ]
-        )
+        atendimento.inclui_procedimento(procedimento)
+        self.__tela_atendimento.mostra_mensagem("Procedimento incluído com sucesso!")
 
-        indice = (
-            self.__tela_atendimento.seleciona_indice(
-                "Número do procedimento"
-            )
-        )
-
-        self.exclui_procedimento_atendimento(
-            numero, indice
-        )
-
-    def __listar(self):
-        if not self.__atendimentos:
-            self.__tela_atendimento.mostra_mensagem(
-                "Nenhum atendimento cadastrado."
-            )
+    def exclui_procedimento_atendimento(self, numero_atendimento: int, procedimento: Procedimento) -> None:
+        atendimento = self.busca_atendimento(numero_atendimento)
+        if atendimento is None:
+            self.__tela_atendimento.mostra_mensagem("Atendimento não encontrado!")
             return
 
-        for a in self.__atendimentos:
-            self.__tela_atendimento.mostra_atendimento({
-                "numero_atendimento": a.numero_atendimento,
-                "clinica": a.clinica.nome,
-                "paciente": a.paciente.nome,
-                "profissional": a.profissional.nome,
-                "data": a.data.strftime("%d/%m/%Y"),
-                "hora_inicio": a.hora_inicio.strftime("%H:%M"),
-                "hora_fim": a.hora_fim.strftime("%H:%M"),
-                "tipo": a.tipo_atendimento.nome,
-                "valor_total": a.valor_total,
-                "valor_restante": a.mostra_valor_restante(),
-                "pago": "Sim" if a.pago() else "Não"
-            })
+        atendimento.remove_procedimento(procedimento)
+        self.__tela_atendimento.mostra_mensagem("Procedimento removido com sucesso!")
 
-    def retorna(self):
+    def lista_procedimentos_atendimento(self, numero_atendimento: int) -> list:
+        atendimento = self.busca_atendimento(numero_atendimento)
+        return list(atendimento.procedimentos) if atendimento else []
+
+    def registra_pagamento(self, numero_atendimento: int, pagamento: Pagamento) -> None:
+        atendimento = self.busca_atendimento(numero_atendimento)
+        if atendimento is None:
+            self.__tela_atendimento.mostra_mensagem("Atendimento não encontrado!")
+            return
+
+        atendimento.adiciona_pagamento(pagamento)
+        self.__tela_atendimento.mostra_mensagem("Pagamento registrado com sucesso!")
+
+    def lista_pagamentos(self, numero_atendimento: int) -> list:
+        atendimento = self.busca_atendimento(numero_atendimento)
+        return list(atendimento.pagamentos) if atendimento else []
+
+    def exclui_pagamento(self, numero_atendimento: int, indice_pagamento: int) -> None:
+        atendimento = self.busca_atendimento(numero_atendimento)
+        if atendimento is None or not (0 <= indice_pagamento < len(atendimento.pagamentos)):
+            self.__tela_atendimento.mostra_mensagem("Pagamento não encontrado!")
+            return
+
+        atendimento.pagamentos.pop(indice_pagamento)
+        self.__tela_atendimento.mostra_mensagem("Pagamento excluído com sucesso!")
+
+    def altera_pagamento(self, numero_atendimento: int, indice_pagamento: int, dados: dict) -> None:
+        atendimento = self.busca_atendimento(numero_atendimento)
+        if atendimento is None or not (0 <= indice_pagamento < len(atendimento.pagamentos)):
+            self.__tela_atendimento.mostra_mensagem("Pagamento não encontrado!")
+            return
+
+        pagamento = atendimento.pagamentos[indice_pagamento]
+        if "valor" in dados and dados["valor"] is not None:
+            pagamento.valor_pagamento = dados["valor"]
+
+        self.__tela_atendimento.mostra_mensagem("Pagamento alterado com sucesso!")
+
+    def retorna(self) -> None:
         pass
 
-    def abre_tela(self):
-        opcoes = {
-            1: self.__agendar,
-            2: self.__reagendar,
-            3: self.__cancelar,
-            4: self.__incluir_proc,
-            5: self.__pagar,
-            6: self.__listar,
-            7: self.__listar_pagamentos,
-            8: self.__alterar_pagamento,
-            9: self.__excluir_pagamento,
-            10: self.__listar_procedimentos,
-            11: self.__excluir_procedimento,
-            12: self.__alterar_dados,
-            0: self.retorna
-        }
-
+    def abre_tela(self) -> None:
         while True:
             try:
-                opcao = (
-                    self.__tela_atendimento
-                    .tela_opcoes()
-                )
+                opcao = self.__tela_atendimento.tela_opcoes()
 
-                if opcao not in opcoes:
-                    self.__tela_atendimento.mostra_mensagem(
-                        "Opção inválida!"
+                if opcao == 1:  # Agendar Atendimento
+                    dados = self.__tela_atendimento.pega_dados_agendamento()
+                    sistema = self.__controlador_sistema
+
+                    erros = []
+
+                    # 1. Valida Clínica
+                    clinica = sistema.controlador_clinica.busca_clinica(dados["nome_clinica"])
+                    if clinica is None:
+                        erros.append(str(ClinicaNaoCadastradaException(dados["nome_clinica"])))
+
+                    # 2. Valida Paciente
+                    paciente = sistema.controlador_paciente.busca_paciente(dados["cpf_paciente"])
+                    if paciente is None:
+                        erros.append(str(PacienteNaoCadastradoException(dados["cpf_paciente"])))
+
+                    # 3. Valida Profissional
+                    profissional = sistema.controlador_profissional.busca_profissional(dados["cpf_profissional"])
+                    if profissional is None:
+                        erros.append(str(ProfissionalNaoCadastradoException(dados["cpf_profissional"])))
+
+                    # 4. Valida Tipo de Atendimento
+                    tipo = sistema.controlador_tipo_atendimento.busca_tipo_atendimento(dados["codigo_tipo"])
+                    if tipo is None:
+                        erros.append(str(TipoAtendimentoNaoCadastradoException(dados["codigo_tipo"])))
+
+                    # Se houver um ou mais erros acumulados, lança a exceção combinando todos
+                    if erros:
+                        raise Exception("\n".join(erros))
+
+                    acompanhante = None
+                    if not paciente.maior_de_idade(dados["data"]):
+                        self.__tela_atendimento.mostra_mensagem("Informe o acompanhante do paciente menor de idade.")
+                        acompanhante = Acompanhante(**self.__tela_atendimento.pega_dados_acompanhante())
+
+                    atendimento = Atendimento(
+                        clinica, paciente, profissional, dados["data"],
+                        dados["hora_inicio"], dados["hora_fim"], tipo,
+                        dados["valor"], self.__proximo_numero, acompanhante
                     )
-                    continue
+                    self.agenda_atendimento(atendimento)
 
-                opcoes[opcao]()
+                elif opcao == 2:  # Reagendar
+                    num = self.__tela_atendimento.seleciona_atendimento()
+                    dados = self.__tela_atendimento.pega_dados_reagendamento()
+                    self.reagenda_atendimento(num, dados["hora_inicio"], dados["hora_fim"], dados["data"])
 
-                if opcao == 0:
+                elif opcao == 3:  # Cancelar
+                    num = self.__tela_atendimento.seleciona_atendimento()
+                    self.cancela_atendimento(num)
+
+                elif opcao == 4:  # Incluir Procedimento
+                    num = self.__tela_atendimento.seleciona_atendimento()
+                    descricao = self.__tela_atendimento.seleciona_procedimento()
+                    proc = self.__controlador_sistema.controlador_procedimento.busca_procedimento(descricao)
+                    self.inclui_procedimento(num, proc)
+
+                elif opcao == 5:  # Registrar Pagamento
+                    num = self.__tela_atendimento.seleciona_atendimento()
+                    atendimento = self.busca_atendimento(num)
+                    if atendimento is None:
+                        self.__tela_atendimento.mostra_mensagem("Atendimento não encontrado!")
+                        continue
+
+                    modalidade = self.__tela_atendimento.seleciona_forma_pagamento()
+                    if modalidade == 1:
+                        dados_p = self.__tela_atendimento.pega_dados_dinheiro()
+                        pagamento = PagamentoDinheiro(dados_p["data"], atendimento, dados_p["valor_pagamento"])
+                    elif modalidade == 2:
+                        dados_p = self.__tela_atendimento.pega_dados_pix()
+                        pagamento = PagamentoPix(dados_p["data"], atendimento, dados_p["valor_pagamento"], dados_p["cpf"])
+                    elif modalidade == 3:
+                        dados_p = self.__tela_atendimento.pega_dados_cartao()
+                        pagamento = PagamentoCartao(
+                            dados_p["data"], atendimento, dados_p["valor_pagamento"],
+                            dados_p["bandeira"], dados_p["numero"], dados_p["parcelas"]
+                        )
+                    else:
+                        continue
+
+                    self.registra_pagamento(num, pagamento)
+
+                elif opcao == 6:  # Listar Atendimentos
+                    if not self.__atendimentos:
+                        self.__tela_atendimento.mostra_mensagem("Nenhum atendimento cadastrado.")
+                    else:
+                        for a in self.__atendimentos:
+                            self.__tela_atendimento.mostra_atendimento({
+                                "numero_atendimento": a.numero_atendimento,
+                                "clinica": a.clinica.nome,
+                                "paciente": a.paciente.nome,
+                                "profissional": a.profissional.nome,
+                                "data": a.data.strftime("%d/%m/%Y"),
+                                "hora_inicio": a.hora_inicio.strftime("%H:%M"),
+                                "hora_fim": a.hora_fim.strftime("%H:%M"),
+                                "tipo": a.tipo_atendimento.nome,
+                                "valor_total": a.valor_total,
+                                "valor_restante": a.mostra_valor_restante(),
+                                "pago": "Sim" if a.pago() else "Não"
+                            })
+
+                elif opcao == 7:  # Listar Pagamentos
+                    num = self.__tela_atendimento.seleciona_atendimento()
+                    pagamentos = self.lista_pagamentos(num)
+                    if pagamentos:
+                        self.__tela_atendimento.mostra_pagamentos([p.mostra_dados() for p in pagamentos])
+                    else:
+                        self.__tela_atendimento.mostra_mensagem("Atendimento não encontrado ou sem pagamentos!")
+
+                elif opcao == 8:  # Alterar Pagamento
+                    num = self.__tela_atendimento.seleciona_atendimento()
+                    atendimento = self.busca_atendimento(num)
+                    if atendimento is None or not atendimento.pagamentos:
+                        self.__tela_atendimento.mostra_mensagem("Atendimento sem pagamentos!")
+                    else:
+                        self.__tela_atendimento.mostra_pagamentos([p.mostra_dados() for p in atendimento.pagamentos])
+                        indice = self.__tela_atendimento.seleciona_indice("Número do pagamento")
+                        dados_p = self.__tela_atendimento.pega_dados_alteracao_pagamento()
+                        self.altera_pagamento(num, indice, dados_p)
+
+                elif opcao == 9:  # Excluir Pagamento
+                    num = self.__tela_atendimento.seleciona_atendimento()
+                    pagamentos = self.lista_pagamentos(num)
+                    if not pagamentos:
+                        self.__tela_atendimento.mostra_mensagem("Nenhum pagamento encontrado!")
+                    else:
+                        self.__tela_atendimento.mostra_pagamentos([p.mostra_dados() for p in pagamentos])
+                        indice = self.__tela_atendimento.seleciona_indice("Número do pagamento")
+                        self.exclui_pagamento(num, indice)
+
+                elif opcao == 10:  # Listar Procedimentos
+                    num = self.__tela_atendimento.seleciona_atendimento()
+                    procedimentos = self.lista_procedimentos_atendimento(num)
+                    if procedimentos:
+                        self.__tela_atendimento.mostra_procedimentos([p.mostra_dados() for p in procedimentos])
+                    else:
+                        self.__tela_atendimento.mostra_mensagem("Atendimento não encontrado ou sem procedimentos!")
+
+                elif opcao == 11:  # Excluir Procedimento
+                    num = self.__tela_atendimento.seleciona_atendimento()
+                    procedimentos = self.lista_procedimentos_atendimento(num)
+                    if not procedimentos:
+                        self.__tela_atendimento.mostra_mensagem("Atendimento sem procedimentos!")
+                    else:
+                        self.__tela_atendimento.mostra_procedimentos([p.mostra_dados() for p in procedimentos])
+                        idx = self.__tela_atendimento.seleciona_indice("Número do procedimento")
+                        if 0 <= idx < len(procedimentos):
+                            self.exclui_procedimento_atendimento(num, procedimentos[idx])
+
+                elif opcao == 12:  # Alterar Dados do Atendimento
+                    num = self.__tela_atendimento.seleciona_atendimento()
+                    if self.busca_atendimento(num) is None:
+                        self.__tela_atendimento.mostra_mensagem("Atendimento não encontrado!")
+                    else:
+                        dados = self.__tela_atendimento.pega_dados_alteracao()
+                        atualizacoes = {"valor": dados.get("valor")}
+
+                        erros_alt = []
+                        if dados.get("cpf_profissional"):
+                            p = self.__controlador_sistema.controlador_profissional.busca_profissional(dados["cpf_profissional"])
+                            if p is None:
+                                erros_alt.append(str(ProfissionalNaoCadastradoException(dados["cpf_profissional"])))
+                            else:
+                                atualizacoes["profissional"] = p
+
+                        if dados.get("codigo_tipo") is not None:
+                            t = self.__controlador_sistema.controlador_tipo_atendimento.busca_tipo_atendimento(dados["codigo_tipo"])
+                            if t is None:
+                                erros_alt.append(str(TipoAtendimentoNaoCadastradoException(dados["codigo_tipo"])))
+                            else:
+                                atualizacoes["tipo_atendimento"] = t
+
+                        if erros_alt:
+                            raise Exception("\n".join(erros_alt))
+
+                        self.altera_atendimento(num, atualizacoes)
+
+                elif opcao == 0:
+                    self.retorna()
                     break
 
-            except ErroSistemaClinicas as erro:
-                self.__tela_atendimento.mostra_mensagem(
-                    str(erro)
-                )
+            except Exception as erro:
+                self.__tela_atendimento.mostra_mensagem(str(erro))
