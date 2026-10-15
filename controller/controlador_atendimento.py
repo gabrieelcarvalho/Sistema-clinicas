@@ -15,6 +15,8 @@ from exceptions.profissional_nao_cadastrado_exception import ProfissionalNaoCada
 from exceptions.tipo_atendimento_nao_cadastrado_exception import TipoAtendimentoNaoCadastradoException
 from exceptions.acompanhante_menor_exception import AcompanhanteMenorDeIdadeException
 from exceptions.valor_invalido_exception import ValorInvalidoException
+from exceptions.paciente_ocupado_exception import PacienteOcupadoException
+from exceptions.profissional_ocupado_exception import ProfissionalOcupadoException
 
 
 class ControladorAtendimento:
@@ -60,8 +62,23 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem("Atendimento inválido!")
             return
 
-        if atendimento.valor <= 0:
-            raise ValorInvalidoException(atendimento.valor)
+        if atendimento.hora_inicio >= atendimento.hora_fim:
+            self.__tela_atendimento.mostra_mensagem("Horário final deve ser posterior ao inicial!")
+            return
+
+        # 1. Validação de horário de funcionamento da clínica
+        if not self.valida_horario(atendimento.clinica, atendimento.hora_inicio, atendimento.hora_fim):
+            self.__tela_atendimento.mostra_mensagem("Atendimento fora do horário de funcionamento da clínica!")
+            return
+
+        # 2. Validação de conflito de horário para o paciente ou profissional
+        for a in self.__atendimentos:
+            if a.data == atendimento.data:
+                if atendimento.hora_inicio < a.hora_fim and a.hora_inicio < atendimento.hora_fim:
+                    if a.paciente.cpf == atendimento.paciente.cpf:
+                        raise PacienteOcupadoException(atendimento.paciente.cpf)
+                    if a.profissional.cpf == atendimento.profissional.cpf:
+                        raise ProfissionalOcupadoException(atendimento.profissional.cpf)
 
         try:
             if not self.valida_maioridade(
@@ -120,6 +137,15 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem("Atendimento fora do horário de funcionamento da clínica!")
             return
 
+        # Verifica conflito de horário no reagendamento
+        for a in self.__atendimentos:
+            if a is not atendimento and a.data == data:
+                if hora_inicio < a.hora_fim and a.hora_inicio < hora_fim:
+                    if a.paciente.cpf == atendimento.paciente.cpf:
+                        raise PacienteOcupadoException(atendimento.paciente.cpf)
+                    if a.profissional.cpf == atendimento.profissional.cpf:
+                        raise ProfissionalOcupadoException(atendimento.profissional.cpf)
+
         try:
             if not self.valida_maioridade(
                 atendimento.paciente,
@@ -151,7 +177,13 @@ class ControladorAtendimento:
             atendimento.valor = dados["valor"]
 
         if "profissional" in dados and dados["profissional"] is not None:
-            atendimento.profissional = dados["profissional"]
+            novo_prof = dados["profissional"]
+            for a in self.__atendimentos:
+                if a is not atendimento and a.data == atendimento.data:
+                    if atendimento.hora_inicio < a.hora_fim and a.hora_inicio < atendimento.hora_fim:
+                        if a.profissional.cpf == novo_prof.cpf:
+                            raise ProfissionalOcupadoException(novo_prof.cpf)
+            atendimento.profissional = novo_prof
 
         if "tipo_atendimento" in dados and dados["tipo_atendimento"] is not None:
             atendimento.tipo_atendimento = dados["tipo_atendimento"]
@@ -186,13 +218,6 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem("Atendimento não encontrado!")
             return
 
-        if pagamento.valor_pagamento <= 0:
-            raise ValorInvalidoException(pagamento.valor_pagamento)
-
-        if pagamento.valor_pagamento > atendimento.mostra_valor_restante() + 1e-9:
-            self.__tela_atendimento.mostra_mensagem("Valor do pagamento excede o valor restante do atendimento!")
-            return
-
         atendimento.adiciona_pagamento(pagamento)
         self.__tela_atendimento.mostra_mensagem("Pagamento registrado com sucesso!")
 
@@ -215,19 +240,10 @@ class ControladorAtendimento:
             self.__tela_atendimento.mostra_mensagem("Pagamento não encontrado!")
             return
 
+        pagamento = atendimento.pagamentos[indice_pagamento]
+
         if "valor" in dados and dados["valor"] is not None:
-            novo_valor = dados["valor"]
-            if novo_valor <= 0:
-                raise ValorInvalidoException(novo_valor)
-
-            pagamento_atual = atendimento.pagamentos[indice_pagamento]
-            diferenca = novo_valor - pagamento_atual.valor_pagamento
-
-            if diferenca > atendimento.mostra_valor_restante() + 1e-9:
-                self.__tela_atendimento.mostra_mensagem("Novo valor excede o total restante devido!")
-                return
-
-            pagamento_atual.valor_pagamento = novo_valor
+            pagamento.valor_pagamento = dados["valor"]
 
         self.__tela_atendimento.mostra_mensagem("Pagamento alterado com sucesso!")
 
