@@ -1,321 +1,193 @@
-import re
-from datetime import datetime
-
-
-def solicitar_cpf(campo: str = "CPF", opcional: bool = False) -> str:
-    while True:
-        cpf = input(f"{campo} (000.000.000-00): ").strip()
-
-        if opcional and not cpf:
-            return ""
-
-        if re.fullmatch(r"[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}", cpf):
-            return cpf
-
-        print("[AVISO]: CPF inválido! Use 000.000.000-00.")
-
-
-def solicitar_celular(campo: str = "Celular") -> str:
-    while True:
-        celular = input(f"{campo} ((00) 00000-0000): ").strip()
-
-        if re.fullmatch(r"\([0-9]{2}\) [0-9]{5}-[0-9]{4}", celular):
-            return celular
-
-        print("[AVISO]: Celular inválido! Use (00) 00000-0000.")
+from datetime import datetime, date as Date, time as Time
 
 
 class TelaAtendimento:
+    def mostra_mensagem(self, mensagem: str) -> None:
+        print(mensagem)
+
+    def pega_int(self, mensagem: str) -> int:
+        while True:
+            try:
+                return int(input(f"{mensagem}: "))
+            except ValueError:
+                print("Valor inválido! Digite um número inteiro.")
+
+    def pega_float(self, mensagem: str) -> float:
+        while True:
+            try:
+                return float(input(f"{mensagem}: "))
+            except ValueError:
+                print("Valor inválido! Digite um número decimal.")
+
+    def pega_data(self, mensagem: str) -> Date:
+        while True:
+            data_str = input(f"{mensagem}: ").strip()
+            try:
+                return datetime.strptime(data_str, "%d/%m/%Y").date()
+            except ValueError:
+                print("Data inválida! Use o formato DD/MM/AAAA.")
+
+    def pega_horario(self, mensagem: str) -> Time:
+        while True:
+            hora_str = input(f"{mensagem}: ").strip()
+            try:
+                return datetime.strptime(hora_str, "%H:%M").time()
+            except ValueError:
+                print("Horário inválido! Use o formato HH:MM.")
+
     def tela_opcoes(self) -> int:
-        print("\n=== GERENCIAR ATENDIMENTOS ===")
-        print("1 - Agendar")
-        print("2 - Reagendar")
-        print("3 - Cancelar")
-        print("4 - Incluir Procedimento")
-        print("5 - Registrar Pagamento")
-        print("6 - Listar Atendimentos")
-        print("7 - Listar Pagamentos")
-        print("8 - Alterar Pagamento")
-        print("9 - Excluir Pagamento")
-        print("10 - Listar Procedimentos Vinculados")
-        print("11 - Excluir Procedimento Vinculado")
-        print("12 - Alterar Profissional, Tipo ou Valor")
-        print("0 - Retornar")
-
-        try:
-            return int(input("Escolha a opção: "))
-        except ValueError:
-            return -1
-
-    def pega_novo_dado(self, campo: str) -> str:
-        return input(f"Novo(a) {campo}: ").strip()
-
-    def pega_inteiro(self, campo: str) -> int:
-        while True:
-            try:
-                return int(
-                    input(f"{campo}: ").strip()
-                )
-            except ValueError:
-                print(
-                    "[AVISO]: Informe um número inteiro!"
-                )
-
-    def pega_valor(self, campo: str) -> float:
-        while True:
-            try:
-                valor = float(
-                    input(f"{campo} (R$): ").strip()
-                )
-
-                if 0 <= valor < float("inf"):
-                    return valor
-
-                print(
-                    "[AVISO]: Valor não pode ser "
-                    "negativo ou infinito!"
-                )
-
-            except ValueError:
-                print("[AVISO]: Valor inválido!")
-
-    def pega_data(self, campo: str):
-        while True:
-            try:
-                texto = input(
-                    f"{campo} (DD/MM/AAAA): "
-                ).strip()
-
-                return datetime.strptime(
-                    texto, "%d/%m/%Y"
-                ).date()
-
-            except ValueError:
-                print("[AVISO]: Data inválida!")
-
-    def pega_horario(self, campo: str):
-        while True:
-            try:
-                texto = input(
-                    f"{campo} (HH:MM): "
-                ).strip()
-
-                return datetime.strptime(
-                    texto, "%H:%M"
-                ).time()
-
-            except ValueError:
-                print("[AVISO]: Horário inválido!")
-
-    def pega_periodo(self) -> dict:
-        while True:
-            inicio = self.pega_horario(
-                "Horário de início"
-            )
-            fim = self.pega_horario(
-                "Horário de fim"
-            )
-
-            if inicio < fim:
-                return {
-                    "hora_inicio": inicio,
-                    "hora_fim": fim
-                }
-
-            print(
-                "[AVISO]: Fim deve ser posterior ao início!"
-            )
+        print("\n" + "=" * 40)
+        print("         MENU DE ATENDIMENTOS")
+        print("=" * 40)
+        print("1  - Agendar Atendimento")
+        print("2  - Reagendar Atendimento")
+        print("3  - Cancelar Atendimento")
+        print("4  - Incluir Procedimento em Atendimento")
+        print("5  - Registrar Pagamento")
+        print("6  - Listar Atendimentos")
+        print("7  - Listar Pagamentos de Atendimento")
+        print("8  - Alterar Pagamento de Atendimento")
+        print("9  - Excluir Pagamento de Atendimento")
+        print("10 - Listar Procedimentos de Atendimento")
+        print("11 - Excluir Procedimento de Atendimento")
+        print("12 - Alterar Dados do Atendimento")
+        print("0  - Voltar")
+        return self.pega_int("Escolha uma opção")
 
     def pega_dados_agendamento(self) -> dict:
-        print("\n--- Dados do Atendimento ---")
-
-        dados = {
-            "numero_atendimento": self.pega_inteiro(
-                "Número do atendimento"
-            ),
-            "nome_clinica": input(
-                "Nome da clínica: "
-            ).strip(),
-            "cpf_paciente": solicitar_cpf(
-                "CPF do paciente"
-            ),
-            "cpf_profissional": solicitar_cpf(
-                "CPF do profissional"
-            ),
-            "codigo_tipo": self.pega_inteiro(
-                "Código do tipo"
-            ),
-            "data": self.pega_data(
-                "Data do atendimento"
-            )
-        }
-
-        dados.update(self.pega_periodo())
-        dados["valor"] = self.pega_valor(
-            "Valor do atendimento"
-        )
-
-        return dados
-
-    def pega_dados_reagendamento(self) -> dict:
-        dados = {
-            "data": self.pega_data("Nova data")
-        }
-
-        dados.update(self.pega_periodo())
-        return dados
-
-    def pega_dados_alteracao(self) -> dict:
-        print(
-            "Deixe CPF e tipo vazios para "
-            "manter os dados atuais."
-        )
-
-        cpf = solicitar_cpf(
-            "Novo CPF do profissional",
-            opcional=True
-        )
-
-        texto_tipo = input(
-            "Novo código do tipo (opcional): "
-        ).strip()
-
-        print(
-            "Valor do atendimento: deixe em "
-            "branco para não alterar."
-        )
-
-        while True:
-            texto_valor = input(
-                "Novo valor (opcional): "
-            ).strip()
-
-            if not texto_valor:
-                valor = None
-                break
-
-            try:
-                valor = float(texto_valor)
-                if 0 <= valor < float("inf"):
-                    break
-            except ValueError:
-                pass
-
-            print("[AVISO]: Valor inválido!")
-
-        while texto_tipo and not texto_tipo.isdecimal():
-            print(
-                "[AVISO]: Informe um código inteiro "
-                "não negativo!"
-            )
-            texto_tipo = input(
-                "Novo código do tipo (opcional): "
-            ).strip()
+        print("\n--- Dados do Agendamento ---")
+        nome_clinica = input("Nome da clínica: ").strip()
+        cpf_paciente = input("CPF do paciente: ").strip()
+        cpf_profissional = input("CPF do profissional: ").strip()
+        codigo_tipo = self.pega_int("Código do tipo de atendimento")
+        data = self.pega_data("Data do atendimento (DD/MM/AAAA)")
+        hora_inicio = self.pega_horario("Horário de início (HH:MM)")
+        hora_fim = self.pega_horario("Horário de término (HH:MM)")
+        valor = self.pega_float("Valor base do atendimento (R$)")
 
         return {
-            "cpf_profissional": cpf,
-            "codigo_tipo": (
-                int(texto_tipo) if texto_tipo else None
-            ),
+            "nome_clinica": nome_clinica,
+            "cpf_paciente": cpf_paciente,
+            "cpf_profissional": cpf_profissional,
+            "codigo_tipo": codigo_tipo,
+            "data": data,
+            "hora_inicio": hora_inicio,
+            "hora_fim": hora_fim,
             "valor": valor
         }
 
-    def seleciona_forma_pagamento(self) -> int:
-        print("1 - Dinheiro")
-        print("2 - PIX")
-        print("3 - Cartão de crédito")
-
-        return self.pega_inteiro("Modalidade")
-
-    def pega_dados_dinheiro(self) -> dict:
-        return {
-            "data": self.pega_data("Data do pagamento"),
-            "valor_pagamento": self.pega_valor("Valor pago")
-        }
-
-    def pega_dados_pix(self) -> dict:
-        dados = self.pega_dados_dinheiro()
-        dados["cpf"] = solicitar_cpf(
-            "CPF do pagador"
-        )
-        return dados
-
-    def pega_dados_cartao(self) -> dict:
-        dados = self.pega_dados_dinheiro()
-        dados["bandeira"] = input(
-            "Bandeira: "
-        ).strip()
-        dados["numero"] = input(
-            "Número do cartão: "
-        ).strip()
-        dados["parcelas"] = self.pega_inteiro(
-            "Quantidade de parcelas"
-        )
-        return dados
-
     def pega_dados_acompanhante(self) -> dict:
         print("\n--- Dados do Acompanhante ---")
+        cpf = input("CPF do acompanhante: ").strip()
+        nome = input("Nome do acompanhante: ").strip()
+        celular = input("Celular do acompanhante: ").strip()
+        data_nascimento = self.pega_data("Data de nascimento (DD/MM/AAAA)")
 
         return {
-            "cpf": solicitar_cpf(),
-            "nome": input("Nome: ").strip(),
-            "celular": solicitar_celular(),
-            "data_nascimento": self.pega_data(
-                "Nascimento"
-            ),
-            "relacao_paciente": input(
-                "Relação com o paciente: "
-            ).strip()
+            "cpf": cpf,
+            "nome": nome,
+            "celular": celular,
+            "data_nascimento": data_nascimento
         }
 
     def seleciona_atendimento(self) -> int:
-        return self.pega_inteiro(
-            "Número do atendimento"
-        )
+        return self.pega_int("Número do atendimento")
+
+    def pega_dados_reagendamento(self) -> dict:
+        print("\n--- Reagendamento de Atendimento ---")
+        data = self.pega_data("Nova data (DD/MM/AAAA)")
+        hora_inicio = self.pega_horario("Novo horário de início (HH:MM)")
+        hora_fim = self.pega_horario("Novo horário de término (HH:MM)")
+
+        return {
+            "data": data,
+            "hora_inicio": hora_inicio,
+            "hora_fim": hora_fim
+        }
 
     def seleciona_procedimento(self) -> str:
-        return input(
-            "Descrição do procedimento: "
-        ).strip()
+        return input("Descrição do procedimento: ").strip()
 
-    def seleciona_indice(self, titulo: str) -> int:
-        return self.pega_inteiro(titulo) - 1
+    def seleciona_forma_pagamento(self) -> int:
+        print("\n--- Forma de Pagamento ---")
+        print("1 - Dinheiro")
+        print("2 - Pix")
+        print("3 - Cartão")
+        return self.pega_int("Escolha a forma de pagamento")
+
+    def pega_dados_dinheiro(self) -> dict:
+        data = self.pega_data("Data do pagamento (DD/MM/AAAA)")
+        valor = self.pega_float("Valor do pagamento (R$)")
+        return {
+            "data": data,
+            "valor_pagamento": valor
+        }
+
+    def pega_dados_pix(self) -> dict:
+        data = self.pega_data("Data do pagamento (DD/MM/AAAA)")
+        valor = self.pega_float("Valor do pagamento (R$)")
+        cpf = input("CPF do pagador: ").strip()
+        return {
+            "data": data,
+            "valor_pagamento": valor,
+            "cpf": cpf
+        }
+
+    def pega_dados_cartao(self) -> dict:
+        data = self.pega_data("Data do pagamento (DD/MM/AAAA)")
+        valor = self.pega_float("Valor do pagamento (R$)")
+        bandeira = input("Bandeira do cartão: ").strip()
+        numero = input("Número do cartão: ").strip()
+
+        return {
+            "data": data,
+            "valor_pagamento": valor,
+            "bandeira": bandeira,
+            "numero": numero
+        }
 
     def mostra_atendimento(self, dados: dict) -> None:
-        print(
-            f"Nº {dados['numero_atendimento']} | "
-            f"Clínica: {dados['clinica']} | "
-            f"Paciente: {dados['paciente']} | "
-            f"Profissional: {dados['profissional']} | "
-            f"Data: {dados['data']} "
-            f"({dados['hora_inicio']} às {dados['hora_fim']}) | "
-            f"Tipo: {dados['tipo']} | "
-            f"Total: R$ {dados['valor_total']:.2f} | "
-            f"Restante: R$ {dados['valor_restante']:.2f} | "
-            f"Pago: {dados['pago']}"
-        )
+        print("\n----------------------------------------")
+        print(f"Número do Atendimento: {dados['numero_atendimento']}")
+        print(f"Clínica: {dados['clinica']}")
+        print(f"Paciente: {dados['paciente']}")
+        print(f"Profissional: {dados['profissional']}")
+        print(f"Data: {dados['data']}")
+        print(f"Horário: {dados['hora_inicio']} - {dados['hora_fim']}")
+        print(f"Tipo: {dados['tipo']}")
+        print(f"Valor Total: R$ {dados['valor_total']:.2f}")
+        print(f"Valor Restante: R$ {dados['valor_restante']:.2f}")
+        print(f"Pago: {dados['pago']}")
+        print("----------------------------------------")
 
-    def mostra_pagamentos(self, dados: list) -> None:
-        print("\n--- PAGAMENTOS ---")
+    def mostra_pagamentos(self, pagamentos: list) -> None:
+        print("\n--- Lista de Pagamentos ---")
+        for i, item in enumerate(pagamentos):
+            print(f"[{i}] {item}")
 
-        if not dados:
-            print("Nenhum pagamento registrado.")
+    def mostra_procedimentos(self, procedimentos: list) -> None:
+        print("\n--- Lista de Procedimentos ---")
+        for i, item in enumerate(procedimentos):
+            print(f"[{i}] {item}")
 
-        for indice, descricao in enumerate(
-            dados, start=1
-        ):
-            print(f"{indice} - {descricao}")
+    def seleciona_indice(self, label: str) -> int:
+        return self.pega_int(f"Informe o {label}")
 
-    def mostra_procedimentos(self, dados: list) -> None:
-        print("\n--- PROCEDIMENTOS VINCULADOS ---")
+    def pega_dados_alteracao_pagamento(self) -> dict:
+        valor = self.pega_float("Novo valor do pagamento (R$)")
+        return {"valor": valor}
 
-        if not dados:
-            print("Nenhum procedimento registrado.")
+    def pega_dados_alteracao(self) -> dict:
+        print("\n--- Alterar Dados do Atendimento ---")
+        cpf_profissional = input("Novo CPF do profissional (ou Enter para manter): ").strip()
+        codigo_tipo_str = input("Novo código do tipo de atendimento (ou Enter para manter): ").strip()
+        valor_str = input("Novo valor base do atendimento (ou Enter para manter): ").strip()
 
-        for indice, descricao in enumerate(
-            dados, start=1
-        ):
-            print(f"{indice} - {descricao}")
+        codigo_tipo = int(codigo_tipo_str) if codigo_tipo_str.isdigit() else None
+        valor = float(valor_str) if valor_str else None
 
-    def mostra_mensagem(self, msg: str) -> None:
-        print(f"\n[AVISO]: {msg}")
+        return {
+            "cpf_profissional": cpf_profissional if cpf_profissional else None,
+            "codigo_tipo": codigo_tipo,
+            "valor": valor
+        }
