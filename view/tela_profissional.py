@@ -1,3 +1,28 @@
+import re
+
+
+def solicitar_cpf(campo: str = "CPF", opcional: bool = False) -> str:
+    while True:
+        cpf = input(f"{campo} (000.000.000-00): ").strip()
+
+        if opcional and not cpf:
+            return ""
+
+        if re.fullmatch(r"[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}", cpf):
+            return cpf
+
+        print("[AVISO]: CPF inválido! Use 000.000.000-00.")
+
+
+def solicitar_celular(campo: str = "Celular") -> str:
+    while True:
+        celular = input(f"{campo} ((00) 00000-0000): ").strip()
+
+        if re.fullmatch(r"\([0-9]{2}\) [0-9]{5}-[0-9]{4}", celular):
+            return celular
+
+        print("[AVISO]: Celular inválido! Use (00) 00000-0000.")
+
 
 class TelaProfissional:
     def tela_opcoes(self) -> int:
@@ -22,8 +47,8 @@ class TelaProfissional:
 
         return {
             "nome": input("Nome: ").strip(),
-            "cpf": input("CPF: ").strip(),
-            "celular": input("Celular: ").strip(),
+            "cpf": solicitar_cpf(),
+            "celular": solicitar_celular(),
             "especialidade": input("Especialidade: ").strip(),
             "registro_profissional": input(
                 "Registro Profissional: "
@@ -31,6 +56,12 @@ class TelaProfissional:
         }
 
     def pega_novo_dado(self, campo: str) -> str:
+        if campo == "cpf":
+            return solicitar_cpf("Novo CPF")
+
+        if campo == "celular":
+            return solicitar_celular("Novo celular")
+
         return input(f"Novo(a) {campo}: ").strip()
 
     def mostra_profissional(self, dados: dict) -> None:
@@ -45,6 +76,9 @@ class TelaProfissional:
     def seleciona_profissional(
         self, tipo: str = "CPF"
     ) -> str:
+        if tipo.upper() == "CPF":
+            return solicitar_cpf("CPF do profissional")
+
         return input(
             f"Digite o {tipo} do profissional: "
         ).strip()

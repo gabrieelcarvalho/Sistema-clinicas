@@ -1,3 +1,15 @@
+import re
+
+
+def solicitar_cpf(campo: str = "CPF") -> str:
+    while True:
+        cpf = input(f"{campo} (000.000.000-00): ").strip()
+
+        if re.fullmatch(r"[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}", cpf):
+            return cpf
+
+        print("[AVISO]: CPF inválido! Use 000.000.000-00.")
+
 
 class TelaProcedimento:
     def tela_opcoes(self) -> int:
@@ -52,9 +64,9 @@ class TelaProcedimento:
         ).strip()
 
     def seleciona_profissional(self) -> str:
-        return input(
-            "CPF do profissional responsável: "
-        ).strip()
+        return solicitar_cpf(
+            "CPF do profissional responsável"
+        )
 
     def mostra_procedimento(self, dados: dict) -> None:
         print(

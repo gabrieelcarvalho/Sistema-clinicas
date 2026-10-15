@@ -1,5 +1,28 @@
-
+import re
 from datetime import datetime
+
+
+def solicitar_cpf(campo: str = "CPF", opcional: bool = False) -> str:
+    while True:
+        cpf = input(f"{campo} (000.000.000-00): ").strip()
+
+        if opcional and not cpf:
+            return ""
+
+        if re.fullmatch(r"[0-9]{3}\.[0-9]{3}\.[0-9]{3}-[0-9]{2}", cpf):
+            return cpf
+
+        print("[AVISO]: CPF inválido! Use 000.000.000-00.")
+
+
+def solicitar_celular(campo: str = "Celular") -> str:
+    while True:
+        celular = input(f"{campo} ((00) 00000-0000): ").strip()
+
+        if re.fullmatch(r"\([0-9]{2}\) [0-9]{5}-[0-9]{4}", celular):
+            return celular
+
+        print("[AVISO]: Celular inválido! Use (00) 00000-0000.")
 
 
 class TelaAtendimento:
@@ -113,12 +136,12 @@ class TelaAtendimento:
             "nome_clinica": input(
                 "Nome da clínica: "
             ).strip(),
-            "cpf_paciente": input(
-                "CPF do paciente: "
-            ).strip(),
-            "cpf_profissional": input(
-                "CPF do profissional: "
-            ).strip(),
+            "cpf_paciente": solicitar_cpf(
+                "CPF do paciente"
+            ),
+            "cpf_profissional": solicitar_cpf(
+                "CPF do profissional"
+            ),
             "codigo_tipo": self.pega_inteiro(
                 "Código do tipo"
             ),
@@ -148,9 +171,10 @@ class TelaAtendimento:
             "manter os dados atuais."
         )
 
-        cpf = input(
-            "Novo CPF do profissional (opcional): "
-        ).strip()
+        cpf = solicitar_cpf(
+            "Novo CPF do profissional",
+            opcional=True
+        )
 
         texto_tipo = input(
             "Novo código do tipo (opcional): "
@@ -211,9 +235,9 @@ class TelaAtendimento:
 
     def pega_dados_pix(self) -> dict:
         dados = self.pega_dados_dinheiro()
-        dados["cpf"] = input(
-            "CPF do pagador: "
-        ).strip()
+        dados["cpf"] = solicitar_cpf(
+            "CPF do pagador"
+        )
         return dados
 
     def pega_dados_cartao(self) -> dict:
@@ -233,9 +257,9 @@ class TelaAtendimento:
         print("\n--- Dados do Acompanhante ---")
 
         return {
-            "cpf": input("CPF: ").strip(),
+            "cpf": solicitar_cpf(),
             "nome": input("Nome: ").strip(),
-            "celular": input("Celular: ").strip(),
+            "celular": solicitar_celular(),
             "data_nascimento": self.pega_data(
                 "Nascimento"
             ),
